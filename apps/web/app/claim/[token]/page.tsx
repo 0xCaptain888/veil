@@ -30,16 +30,44 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
     setBusy(true);
     setMsg('');
     try {
-      const body: any = { recipientAddress: account.address };
+      // Step 1: Build the transaction
+      const buildBody: any = { recipientAddress: account.address };
       if (targetCurrency) {
-        body.targetCoinType = targetCurrency;
+        buildBody.targetCoinType = targetCurrency;
       }
-      const r = await fetch(`${RELAYER_URL}/claims/${params.token}/claim`, {
+      
+      const buildRes = await fetch(`${RELAYER_URL}/claims/${params.token}/build`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(buildBody),
       });
-      const d = await r.json();
+      
+      if (!buildRes.ok) {
+        const err = await buildRes.json();
+        throw new Error(err.error || 'Failed to build transaction');
+      }
+      
+      const buildData = await buildRes.json();
+      const { txBytes } = buildData;
+      
+      // Step 2: Sign the transaction with the wallet
+      // In production with zkLogin, this would use the zkLogin proof
+      // For now, we use the wallet's signAndExecuteTransaction
+      const { Transaction } = await import('@mysten/sui/transactions');
+      const tx = Transaction.from(txBytes);
+      
+      // Use the wallet to sign and execute (demo mode - relayer will sponsor)
+      const { signAndExecuteTransaction } = await import('@mysten/dapp-kit');
+      
+      // For now, fall back to the simple claim flow (relayer executes)
+      // TODO: Implement proper sponsored transaction flow with wallet signing
+      const claimRes = await fetch(`${RELAYER_URL}/claims/${params.token}/claim`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(buildBody),
+      });
+      
+      const d = await claimRes.json();
       if (d.digest) {
         const swapMsg = d.swapped ? ` (swapped to ${d.targetCoinType?.split('::').pop() || 'target currency'})` : '';
         setMsg(`Received! Transaction: ${d.digest}${swapMsg}`);

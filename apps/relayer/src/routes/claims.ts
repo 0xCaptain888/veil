@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Transaction } from '@mysten/sui/transactions';
 import { loadConfig } from '../config.js';
-import { relayerExecute } from '../sui.js';
+import { relayerExecute, buildClaimTransaction, sponsorAndExecute } from '../sui.js';
 import { store } from '../store.js';
 import { toByteArray } from '@veil/sdk';
 
@@ -74,6 +74,83 @@ claimsRouter.post('/:token/claim', async (req, res) => {
     });
   } catch (e: any) {
     console.error('[claims] Claim failed:', e);
+    res.status(500).json({ error: String(e?.message ?? e) });
+  }
+});
+
+/**
+ * Build a claim transaction for the recipient to sign (sponsored transaction flow).
+ * This is the first step in the production W3 path.
+ *
+ * Body: {
+ *   recipientAddress: string,
+ *   targetCoinType?: string
+ * }
+ *
+ * Returns: { txBytes: string, gasBudget: number }
+ */
+claimsRouter.post('/:token/build', async (req, res) => {
+  const t = store.getToken(req.params.token);
+  if (!t) return res.status(404).json({ error: 'unknown token' });
+  if (t.status === 'claimed') return res.status(409).json({ error: 'already claimed' });
+
+  const recipient = req.body?.recipientAddress;
+  if (!recipient) return res.status(400).json({ error: 'recipientAddress required' });
+
+  try {
+    const targetCoinType = req.body?.targetCoinType || t.targetCoinType;
+    
+    const result = await buildClaimTransaction({
+      escrowId: t.escrowId,
+      secret: t.secret,
+      recipientAddress: recipient,
+      targetCoinType: targetCoinType,
+    });
+
+    res.json({
+      ...result,
+      swapped: targetCoinType && targetCoinType !== loadConfig().stableCoinType && !!loadConfig().deepbookPoolId,
+      targetCoinType: targetCoinType || loadConfig().stableCoinType,
+    });
+  } catch (e: any) {
+    console.error('[claims] Build transaction failed:', e);
+    res.status(500).json({ error: String(e?.message ?? e) });
+  }
+});
+
+/**
+ * Execute a sponsored claim: recipient has already signed, relayer sponsors gas.
+ * This is the second step in the production W3 path.
+ *
+ * Body: {
+ *   txBytes: string (base64),
+ *   signature: string (base64)
+ * }
+ *
+ * Returns: { digest: string }
+ */
+claimsRouter.post('/:token/execute-sponsored', async (req, res) => {
+  const t = store.getToken(req.params.token);
+  if (!t) return res.status(404).json({ error: 'unknown token' });
+  if (t.status === 'claimed') return res.status(409).json({ error: 'already claimed' });
+
+  const { txBytes, signature } = req.body ?? {};
+  if (!txBytes || !signature) {
+    return res.status(400).json({ error: 'txBytes and signature required' });
+  }
+
+  try {
+    const result = await sponsorAndExecute({ txBytes, signature });
+    
+    // Extract recipient from the transaction (we need to track this)
+    // For now, we'll use a placeholder - in production, parse from txBytes
+    const recipient = 'sponsored-recipient'; // TODO: extract from tx
+    
+    store.markClaimed(req.params.token, recipient, result.digest);
+
+    res.json({ digest: result.digest });
+  } catch (e: any) {
+    console.error('[claims] Sponsored execution failed:', e);
     res.status(500).json({ error: String(e?.message ?? e) });
   }
 });

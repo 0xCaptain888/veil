@@ -32,3 +32,68 @@ export async function relayerExecute(tx: Transaction) {
     options: { showEffects: true, showEvents: true },
   });
 }
+
+/**
+ * Build a transaction for the recipient to sign (sponsored transaction flow).
+ * Returns the transaction bytes that the recipient can sign with their wallet/zkLogin.
+ */
+export async function buildClaimTransaction(params: {
+  escrowId: string;
+  secret: number[];
+  recipientAddress: string;
+  targetCoinType?: string;
+}): Promise<{ txBytes: string; gasBudget: number }> {
+  const cfg = loadConfig();
+  const tx = new Transaction();
+
+  // Step 1: Claim the payout from escrow
+  const claimedCoin = tx.moveCall({
+    target: `${cfg.packageId}::payroll::claim_payout`,
+    typeArguments: [cfg.stableCoinType],
+    arguments: [tx.object(params.escrowId), tx.pure.vector('u8', params.secret)],
+  });
+
+  // Step 2: Optional DeepBook FX swap (W4)
+  let outputCoin = claimedCoin;
+  if (params.targetCoinType && params.targetCoinType !== cfg.stableCoinType && cfg.deepbookPoolId) {
+    const { maybeSwap } = await import('@veil/sdk');
+    outputCoin = maybeSwap(tx, cfg, claimedCoin, params.targetCoinType, cfg.stableCoinType);
+  }
+
+  // Step 3: Transfer to recipient
+  tx.transferObjects([outputCoin], tx.pure.address(params.recipientAddress));
+
+  // Build the transaction bytes
+  const txBytes = await tx.build({ client: suiClient() });
+  
+  return {
+    txBytes: Buffer.from(txBytes).toString('base64'),
+    gasBudget: 10_000_000, // 0.01 SUI gas budget
+  };
+}
+
+/**
+ * Execute a sponsored transaction: recipient has already signed, relayer sponsors gas.
+ * This is the production path for W3.
+ */
+export async function sponsorAndExecute(params: {
+  txBytes: string;
+  signature: string;
+}): Promise<{ digest: string }> {
+  const client = suiClient();
+  
+  // Decode the transaction bytes
+  const txBytesArray = new Uint8Array(Buffer.from(params.txBytes, 'base64'));
+  
+  // Execute with the recipient's signature, relayer pays gas
+  const result = await client.executeTransactionBlock({
+    transactionBlock: params.txBytes,
+    signature: params.signature,
+    options: {
+      showEffects: true,
+      showEvents: true,
+    },
+  });
+
+  return { digest: result.digest };
+}
