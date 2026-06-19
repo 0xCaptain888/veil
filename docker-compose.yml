@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  relayer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: relayer
+    ports:
+      - "8787:8787"
+    environment:
+      - SUI_NETWORK=${SUI_NETWORK:-mainnet}
+      - VEIL_PACKAGE_ID=${VEIL_PACKAGE_ID}
+      - RELAYER_PRIVATE_KEY=${RELAYER_PRIVATE_KEY}
+      - STABLE_COIN_TYPE=${STABLE_COIN_TYPE:-0x2::sui::SUI}
+      - PORT=8787
+      - WEB_ORIGIN=${WEB_ORIGIN:-http://localhost:3000}
+      - DATA_DIR=/app/data
+      - RELAYER_API_KEY=${RELAYER_API_KEY:-}
+      - EMAIL_SERVICE=${EMAIL_SERVICE:-console}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@veil.payments}
+      - DEEPBOOK_PACKAGE_ID=${DEEPBOOK_PACKAGE_ID:-}
+      - DEEPBOOK_POOL_ID=${DEEPBOOK_POOL_ID:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - relayer-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: indexer
+    environment:
+      - SUI_NETWORK=${SUI_NETWORK:-mainnet}
+      - VEIL_PACKAGE_ID=${VEIL_PACKAGE_ID}
+      - INDEXER_DATA_DIR=/app/data
+    volumes:
+      - indexer-data:/app/data
+    restart: unless-stopped
+    depends_on:
+      relayer:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_SUI_NETWORK=${SUI_NETWORK:-mainnet}
+      - NEXT_PUBLIC_VEIL_PACKAGE_ID=${VEIL_PACKAGE_ID}
+      - NEXT_PUBLIC_STABLE_COIN_TYPE=${STABLE_COIN_TYPE:-0x2::sui::SUI}
+      - NEXT_PUBLIC_RELAYER_URL=${NEXT_PUBLIC_RELAYER_URL:-http://localhost:8787}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+    restart: unless-stopped
+    depends_on:
+      relayer:
+        condition: service_healthy
+
+volumes:
+  relayer-data:
+  indexer-data:

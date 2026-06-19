@@ -5,6 +5,7 @@ import { PORT, WEB_ORIGIN, loadConfig } from './config.js';
 import { runsRouter } from './routes/runs.js';
 import { claimsRouter } from './routes/claims.js';
 import { auditRouter } from './routes/audit.js';
+import { riskRouter } from './routes/risk.js';
 import { store } from './store.js';
 
 const app = express();
@@ -21,6 +22,7 @@ app.get('/health', (_req, res) => {
 app.use('/runs', runsRouter);
 app.use('/claims', claimsRouter);
 app.use('/audit', auditRouter);
+app.use('/risk', riskRouter);
 
 app.listen(PORT, () => {
   console.log(`[veil] relayer listening on http://localhost:${PORT} (web origin: ${WEB_ORIGIN})`);
