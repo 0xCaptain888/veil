@@ -285,15 +285,15 @@ pnpm run typecheck
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Move contracts | ✅ Deployed to mainnet | Package `0x3d95e6f1...d38921a`, 11/11 tests passing |
+| Move contracts | ✅ Deployed to mainnet | Package `0x3d95e6f1...d38921a`, 11/11 tests passing, entry modifiers restored |
 | SDK | ✅ Complete | PTB builders, DeepBook V3 swap, contra wrap/unwrap, client wrapper |
 | Relayer | ✅ Production-ready | Persistent storage, API auth, email notifications, gas sponsorship |
-| Frontend | ✅ Functional | Employer console, claim app (zkLogin), audit dashboard |
+| Frontend | ✅ Functional | Employer console, claim app (zkLogin + currency selector), audit dashboard (API key auth) |
 | CI/CD | ✅ Working | Move build/test + TS typecheck on every push/PR |
 | GitHub | ✅ Synced | https://github.com/0xCaptain888/veil |
 | Confidentiality (W1) | ✅ Adapter integrated | contra API documented, devnet beta ready, mainnet pending |
 | zkLogin (W3) | ✅ Google OAuth integrated | Client ID configured, callback handler, simplified flow |
-| DeepBook FX (W4) | ✅ Mainnet pools configured | V3 package + SUI/USDC pool + swap logic with slippage protection |
+| DeepBook FX (W4) | ✅ Fully integrated | V3 mainnet pools configured, swap logic with slippage protection, UI currency selector |
 | Walrus/Seal (W5) | ⏳ Interface defined | Needs publisher URL + encryption logic |
 
 See **`DEPLOYMENT_REPORT.md`** for the full deployment report with step-by-step next actions.
