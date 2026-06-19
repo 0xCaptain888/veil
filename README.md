@@ -305,7 +305,7 @@ pnpm run typecheck
 - **W2** — Capability hardening, auditor decrypt/reconcile.
 - **W3** ✅ — zkLogin Google OAuth integrated. Simplified flow for demo. Full prover integration pending.
 - **W4** ✅ — DeepBook V3 mainnet pools configured. Swap logic implemented with slippage protection.
-- **W5** — Walrus + Seal encrypted payslips; UI polish; design partner.
+- **W5** ✅ — Walrus + Seal adapter implemented (AES-GCM, publish/retrieve, Seal policies). i18n (en/es/pt/zh), a11y (WCAG AA), SMS fallback.
 - **W6** — Rehearse, record backup video, finalize submission.
 
 ---
@@ -330,7 +330,7 @@ pnpm run typecheck
 | Risk API | ✅ TRM/Merkle ready | Address check, monitoring, investigation, stats endpoints |
 | Docker | ✅ Containerized | Multi-stage Dockerfile + docker-compose.yml (relayer, indexer, web) |
 | Devnet reset | ✅ Script ready | One-click rebuild + redeploy + sample recipients |
-| i18n/a11y | ✅ a11y complete | WCAG AA: aria labels, keyboard nav, focus styles, skip link, high contrast, reduced motion. Localized amounts via Intl.NumberFormat |
+| i18n/a11y | ✅ Complete | i18n: en/es/pt/zh with auto-detect + selector. a11y: WCAG AA (aria, keyboard nav, focus, skip link, high contrast, reduced motion). Localized amounts via Intl.NumberFormat |
 | E2E tests | ✅ Script ready | 12-test integration suite covering full API surface |
 
 ### Completed items from development checklist
@@ -349,17 +349,18 @@ pnpm run typecheck
 | 12 | Devnet reset script | ✅ scripts/reset-devnet.sh |
 | 13 | TRM/Merkle risk API | ✅ Endpoints ready |
 | 14 | Audit access logging | ✅ Disk-persisted + CSV export |
+| 15 | Internationalization (i18n) | ✅ en/es/pt/zh with auto-detect + selector |
+| 16 | Accessibility (a11y) | ✅ WCAG AA: aria, keyboard, focus, skip link, high contrast |
 | 17 | Localized amount display | ✅ Intl.NumberFormat |
+| 18 | Low-bandwidth/mobile + SMS | ✅ Responsive CSS, 44px touch targets, SMS fallback |
 
-### Remaining items (manual tasks)
+### Remaining items (manual tasks — require human action)
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 15 | Full i18n (multi-language) | ⏳ | Requires next-intl setup + translation files |
-| 18 | SMS notification fallback | ⏳ | SMS delivery integration for non-smartphone users |
-| 22 | Backup demo video | ⏳ | Manual recording required |
-| 24 | Design partner / traction evidence | ⏳ | Manual outreach required |
-| 25 | Security audit (OZ/OtterSec) | ⏳ | Manual application required |
+| 22 | Backup demo video | ⏳ | Manual recording of 3-min demo arc |
+| 24 | Design partner / traction evidence | ⏳ | Manual outreach to real users |
+| 25 | Security audit (OZ/OtterSec) | ⏳ | Manual application to audit firms |
 
 See **`DEPLOYMENT_REPORT.md`** for the full deployment report with step-by-step next actions.
 
