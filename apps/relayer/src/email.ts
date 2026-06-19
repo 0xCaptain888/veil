@@ -1,11 +1,14 @@
 /**
- * Email notification service for Veil.
+ * Email & SMS notification service for Veil.
  *
- * Sends claim links to recipients via email. In production, integrate with
- * a transactional email service (SendGrid, Postmark, AWS SES, etc.).
+ * Sends claim links to recipients via email or SMS.
+ * In production, integrate with a transactional service (SendGrid, Twilio, etc.).
  *
  * Current implementation: logs to console (demo mode).
- * Production: replace sendEmail() with actual email delivery.
+ * Production: replace sendEmail()/sendSms() with actual delivery.
+ *
+ * SMS fallback (§18/§25): for recipients without smartphones, a text message
+ * with the claim link is sent instead of (or in addition to) email.
  */
 
 export interface EmailPayload {
@@ -15,20 +18,23 @@ export interface EmailPayload {
   text?: string;
 }
 
+export interface SmsPayload {
+  to: string;       // phone number in E.164 format (+1234567890)
+  body: string;
+}
+
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@veil.payments';
-const EMAIL_SERVICE = process.env.EMAIL_SERVICE || 'console'; // 'console' | 'sendgrid' | 'ses' | etc.
+const EMAIL_SERVICE = process.env.EMAIL_SERVICE || 'console'; // 'console' | 'sendgrid' | 'ses'
+const SMS_SERVICE = process.env.SMS_SERVICE || 'console';     // 'console' | 'twilio' | 'sns'
+const SMS_FROM = process.env.SMS_FROM || '+15551234567';
 
 /**
  * Send an email to a recipient.
- *
- * @param payload - The email to send
- * @returns Promise that resolves when the email is sent (or logged in demo mode)
  */
 export async function sendEmail(payload: EmailPayload): Promise<void> {
   const { to, subject, html, text } = payload;
 
   if (EMAIL_SERVICE === 'console') {
-    // Demo mode: log to console
     console.log(`[email] To: ${to}`);
     console.log(`[email] From: ${EMAIL_FROM}`);
     console.log(`[email] Subject: ${subject}`);
@@ -40,7 +46,6 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   }
 
   // Production: integrate with email service
-  // Example: SendGrid
   // if (EMAIL_SERVICE === 'sendgrid') {
   //   const sgMail = require('@sendgrid/mail');
   //   sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
@@ -48,7 +53,6 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
   //   return;
   // }
 
-  // Example: AWS SES
   // if (EMAIL_SERVICE === 'ses') {
   //   const ses = new AWS.SES();
   //   await ses.sendEmail({ ... }).promise();
@@ -59,13 +63,41 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 }
 
 /**
+ * Send an SMS to a recipient (§18 — low-bandwidth / non-smartphone fallback).
+ * 
+ * SMS messages are kept short (< 160 chars when possible) with the claim link.
+ * For recipients without smartphones, the SMS contains the claim link which
+ * opens a lightweight web page that works on basic browsers.
+ */
+export async function sendSms(payload: SmsPayload): Promise<void> {
+  const { to, body } = payload;
+
+  if (SMS_SERVICE === 'console') {
+    console.log(`[sms] To: ${to}`);
+    console.log(`[sms] From: ${SMS_FROM}`);
+    console.log(`[sms] Body: ${body}`);
+    return;
+  }
+
+  // Production: integrate with SMS service
+  // if (SMS_SERVICE === 'twilio') {
+  //   const twilio = require('twilio');
+  //   const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+  //   await client.messages.create({ to, from: SMS_FROM, body });
+  //   return;
+  // }
+
+  // if (SMS_SERVICE === 'sns') {
+  //   const sns = new AWS.SNS();
+  //   await sns.publish({ PhoneNumber: to, Message: body }).promise();
+  //   return;
+  // }
+
+  throw new Error(`SMS service '${SMS_SERVICE}' not implemented. Set SMS_SERVICE=console for demo mode.`);
+}
+
+/**
  * Send a claim link email to a recipient.
- *
- * @param recipientEmail - The recipient's email address
- * @param claimUrl - The full claim URL (includes the one-time token)
- * @param employerName - The employer's name (for personalization)
- * @param displayAmount - The amount to be claimed (for display only)
- * @param targetCoinType - The target coin type (if FX swap is configured)
  */
 export async function sendClaimEmail(
   recipientEmail: string,
@@ -121,4 +153,65 @@ Powered by Veil — Confidential payroll on Sui
   `.trim();
 
   await sendEmail({ to: recipientEmail, subject, html, text });
+}
+
+/**
+ * Send a claim link via SMS (§18 — fallback for non-smartphone users).
+ * 
+ * The SMS is kept concise. The claim URL opens a lightweight page that works
+ * on basic mobile browsers (no JS framework required for the core flow).
+ * 
+ * @param recipientPhone - Phone number in E.164 format (+1234567890)
+ * @param claimUrl - The full claim URL
+ * @param employerName - The employer's name
+ * @param displayAmount - Amount for display
+ */
+export async function sendClaimSms(
+  recipientPhone: string,
+  claimUrl: string,
+  employerName: string,
+  displayAmount: string,
+): Promise<void> {
+  // Keep SMS under 160 chars if possible (single SMS segment)
+  const body = `${employerName}: You have a payment of ${displayAmount}. Claim: ${claimUrl} — Veil`;
+  
+  await sendSms({ to: recipientPhone, body });
+}
+
+/**
+ * Send claim notification via the preferred channel.
+ * If a phone number is provided, sends SMS (or both email + SMS).
+ * If only email is provided, sends email only.
+ */
+export async function sendClaimNotification(params: {
+  email?: string;
+  phone?: string;
+  claimUrl: string;
+  employerName: string;
+  displayAmount: string;
+  targetCoinType?: string;
+  preferSms?: boolean;
+}): Promise<void> {
+  const { email, phone, claimUrl, employerName, displayAmount, targetCoinType, preferSms } = params;
+
+  // Send SMS if phone is available (or preferred)
+  if (phone) {
+    try {
+      await sendClaimSms(phone, claimUrl, employerName, displayAmount);
+    } catch (err) {
+      console.error(`[notify] Failed to send SMS to ${phone}:`, err);
+      // Fall through to email if SMS fails
+      if (!email) throw err;
+    }
+  }
+
+  // Send email if available (and not SMS-only mode)
+  if (email && !preferSms) {
+    try {
+      await sendClaimEmail(email, claimUrl, employerName, displayAmount, targetCoinType);
+    } catch (err) {
+      console.error(`[notify] Failed to send email to ${email}:`, err);
+      if (!phone) throw err;
+    }
+  }
 }

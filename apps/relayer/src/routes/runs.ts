@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { randomUUID } from 'node:crypto';
 import { store } from '../store.js';
 import { requireApiKey } from '../auth.js';
-import { sendClaimEmail } from '../email.js';
+import { sendClaimEmail, sendClaimSms, sendClaimNotification } from '../email.js';
 
 export const runsRouter = Router();
 
@@ -14,10 +14,18 @@ export const runsRouter = Router();
  *   runId: string,
  *   name?: string,
  *   employerName?: string,
- *   recipients: [{ email, displayAmount, escrowId, secret(number[]), targetCoinType? }]
+ *   recipients: [{
+ *     email?: string,
+ *     phone?: string,          // E.164 format for SMS fallback (§18)
+ *     displayAmount: string,
+ *     escrowId: string,
+ *     secret: number[],
+ *     targetCoinType?: string,
+ *     preferSms?: boolean      // send SMS only (no email)
+ *   }]
  * }
  *
- * Returns claim links and sends email notifications to recipients.
+ * Returns claim links and sends email/SMS notifications to recipients.
  */
 runsRouter.post('/register-tokens', requireApiKey, async (req, res) => {
   const { runId, name, employerName, recipients } = req.body ?? {};
@@ -37,7 +45,7 @@ runsRouter.post('/register-tokens', requireApiKey, async (req, res) => {
       runId,
       escrowId: r.escrowId,
       secret: r.secret,
-      email: r.email,
+      email: r.email ?? '',
       displayAmount: String(r.displayAmount ?? ''),
       targetCoinType: r.targetCoinType,
       status: 'pending',
@@ -45,21 +53,23 @@ runsRouter.post('/register-tokens', requireApiKey, async (req, res) => {
     });
 
     const url = `${webOrigin}/claim/${token}`;
-    console.log(`[veil] claim link for ${r.email}: ${url}`);
-    links.push({ email: r.email, token, url });
+    console.log(`[veil] claim link for ${r.email || r.phone || 'recipient'}: ${url}`);
+    links.push({ email: r.email || r.phone, token, url });
 
-    // Send email notification (non-blocking, errors logged but don't fail the request)
+    // Send notification (email and/or SMS)
     try {
-      await sendClaimEmail(
-        r.email,
-        url,
-        employerName ?? 'Your employer',
-        String(r.displayAmount ?? ''),
-        r.targetCoinType,
-      );
+      await sendClaimNotification({
+        email: r.email,
+        phone: r.phone,
+        claimUrl: url,
+        employerName: employerName ?? 'Your employer',
+        displayAmount: String(r.displayAmount ?? ''),
+        targetCoinType: r.targetCoinType,
+        preferSms: r.preferSms,
+      });
     } catch (err) {
-      console.error(`[veil] Failed to send email to ${r.email}:`, err);
-      // Don't fail the request — email is best-effort
+      console.error(`[veil] Failed to notify ${r.email || r.phone}:`, err);
+      // Don't fail the request — notification is best-effort
     }
   }
 

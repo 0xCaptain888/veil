@@ -1,0 +1,328 @@
+/**
+ * Lightweight i18n system for Veil (§25)
+ * 
+ * Supports: English (en), Spanish (es), Portuguese (pt), Chinese (zh)
+ * Auto-detects browser language, falls back to English.
+ * 
+ * Usage:
+ *   import { useTranslation } from '@/lib/i18n';
+ *   const { t, locale } = useTranslation();
+ *   <h1>{t('claim.title')}</h1>
+ */
+
+export type Locale = 'en' | 'es' | 'pt' | 'zh';
+
+export const translations = {
+  en: {
+    'claim.title': 'You have a payment',
+    'claim.to': 'To',
+    'claim.amount': 'Amount',
+    'claim.status': 'Status',
+    'claim.loading': 'Loading…',
+    'claim.loadError': 'Could not load this claim.',
+    'claim.receive.title': 'Receive your funds',
+    'claim.receive.description': 'Sign in with Google (zkLogin) — no wallet, no seed phrase, zero gas. Or connect a wallet directly.',
+    'claim.receive.google': 'Sign in with Google',
+    'claim.receive.connected': 'Connected',
+    'claim.currency.label': 'Receive in currency (optional)',
+    'claim.currency.default': 'SUI (default)',
+    'claim.currency.help.default': 'Default: receive in SUI. You can choose a different currency.',
+    'claim.currency.help.selected': 'Your payment will be automatically swapped via DeepBook V3 at claim time. Slippage protection is enabled.',
+    'claim.receive.btn': 'Receive payment',
+    'claim.receiving': 'Receiving…',
+    'claim.claimed': 'Already claimed',
+    'claim.success': 'Received!',
+    'claim.swapped': 'swapped to',
+    'claim.error.wallet': 'Connect a wallet (or sign in with Google) to receive your funds.',
+    'claim.error.oauth': 'Google OAuth not configured. Please connect a wallet instead.',
+    'claim.status.pending': 'pending',
+    'claim.status.claimed': 'claimed',
+    'home.title': 'Veil',
+    'home.subtitle': 'Confidential global payroll on Sui — salary amounts stay private on-chain, recipients get paid in seconds with zero gas and no seed phrase.',
+    'home.employer': 'Employer console →',
+    'home.employer.desc': 'Create a payroll run, add recipients, execute a confidential batch payout.',
+    'home.auditor': 'Auditor dashboard →',
+    'home.auditor.desc': 'Reconcile a run and export a report.',
+    'home.recipient': 'Recipient claim',
+    'home.recipient.desc': 'Recipients open a personal claim link (e.g. /claim/<token>) from their email.',
+    'home.signedIn': '✓ Signed in with Google',
+    'home.welcome': 'Welcome',
+    'audit.title': 'Auditor dashboard',
+    'audit.apiKey': 'API key (optional)',
+    'audit.runId': 'Run id (0x...)',
+    'audit.load': 'Load',
+    'audit.export': 'Export CSV',
+    'audit.exportLogs': 'Export Access Logs',
+    'audit.email': 'Email',
+    'audit.amount': 'Amount',
+    'audit.target': 'Target',
+    'audit.status': 'Status',
+    'audit.total': 'Total',
+    'audit.claimed': 'Claimed',
+    'audit.pending': 'Pending',
+    'audit.accessLog': 'Access log',
+    'audit.entries': 'entries',
+    'audit.authError': 'Authentication failed. Please check your API key.',
+    'employer.title': 'Employer console',
+    'employer.setup': '1. One-time setup',
+    'employer.setup.desc': 'Create your employer profile + capabilities, then paste a funding coin.',
+    'employer.register': 'Register employer',
+    'employer.employerId': 'Employer object id (0x...)',
+    'employer.adminCap': 'AdminCap id (0x...)',
+    'employer.fundingCoin': 'Funding Coin object id (0x... — a SUI coin you own)',
+    'employer.recipients': '2. Recipients',
+    'employer.addRecipient': '+ add recipient',
+    'employer.removeRecipient': 'Remove recipient',
+    'employer.execute': 'Execute confidential payout',
+    'employer.working': 'Working…',
+    'employer.claimLinks': 'Claim links',
+    'employer.email': 'email',
+    'employer.amount': 'amount (base units)',
+  },
+  es: {
+    'claim.title': 'Tienes un pago',
+    'claim.to': 'Para',
+    'claim.amount': 'Monto',
+    'claim.status': 'Estado',
+    'claim.loading': 'Cargando…',
+    'claim.loadError': 'No se pudo cargar este reclamo.',
+    'claim.receive.title': 'Recibe tus fondos',
+    'claim.receive.description': 'Inicia sesión con Google (zkLogin) — sin billetera, sin frase semilla, cero gas. O conecta una billetera directamente.',
+    'claim.receive.google': 'Iniciar sesión con Google',
+    'claim.receive.connected': 'Conectado',
+    'claim.currency.label': 'Recibir en moneda (opcional)',
+    'claim.currency.default': 'SUI (predeterminado)',
+    'claim.currency.help.default': 'Predeterminado: recibir en SUI. Puedes elegir una moneda diferente.',
+    'claim.currency.help.selected': 'Tu pago se intercambiará automáticamente a través de DeepBook V3 al reclamar. Protección contra deslizamiento habilitada.',
+    'claim.receive.btn': 'Recibir pago',
+    'claim.receiving': 'Recibiendo…',
+    'claim.claimed': 'Ya reclamado',
+    'claim.success': '¡Recibido!',
+    'claim.swapped': 'intercambiado a',
+    'claim.error.wallet': 'Conecta una billetera (o inicia sesión con Google) para recibir tus fondos.',
+    'claim.error.oauth': 'Google OAuth no configurado. Por favor conecta una billetera.',
+    'claim.status.pending': 'pendiente',
+    'claim.status.claimed': 'reclamado',
+    'home.title': 'Veil',
+    'home.subtitle': 'Nómina global confidencial en Sui — los montos de salario permanecen privados en la cadena, los destinatarios reciben pagos en segundos con cero gas y sin frase semilla.',
+    'home.employer': 'Consola de empleador →',
+    'home.employer.desc': 'Crea una ejecución de nómina, agrega destinatarios, ejecuta un pago confidencial por lotes.',
+    'home.auditor': 'Panel de auditoría →',
+    'home.auditor.desc': 'Reconcilia una ejecución y exporta un informe.',
+    'home.recipient': 'Reclamo de destinatario',
+    'home.recipient.desc': 'Los destinatarios abren un enlace de reclamo personal (ej. /claim/<token>) de su correo.',
+    'home.signedIn': '✓ Sesión iniciada con Google',
+    'home.welcome': 'Bienvenido',
+    'audit.title': 'Panel de auditoría',
+    'audit.apiKey': 'Clave API (opcional)',
+    'audit.runId': 'ID de ejecución (0x...)',
+    'audit.load': 'Cargar',
+    'audit.export': 'Exportar CSV',
+    'audit.exportLogs': 'Exportar registros de acceso',
+    'audit.email': 'Correo',
+    'audit.amount': 'Monto',
+    'audit.target': 'Destino',
+    'audit.status': 'Estado',
+    'audit.total': 'Total',
+    'audit.claimed': 'Reclamado',
+    'audit.pending': 'Pendiente',
+    'audit.accessLog': 'Registro de acceso',
+    'audit.entries': 'entradas',
+    'audit.authError': 'Autenticación fallida. Por favor verifica tu clave API.',
+    'employer.title': 'Consola de empleador',
+    'employer.setup': '1. Configuración única',
+    'employer.setup.desc': 'Crea tu perfil de empleador + capacidades, luego pega una moneda de financiamiento.',
+    'employer.register': 'Registrar empleador',
+    'employer.employerId': 'ID de objeto de empleador (0x...)',
+    'employer.adminCap': 'ID de AdminCap (0x...)',
+    'employer.fundingCoin': 'ID de moneda de financiamiento (0x... — una moneda SUI que posees)',
+    'employer.recipients': '2. Destinatarios',
+    'employer.addRecipient': '+ agregar destinatario',
+    'employer.removeRecipient': 'Eliminar destinatario',
+    'employer.execute': 'Ejecutar pago confidencial',
+    'employer.working': 'Trabajando…',
+    'employer.claimLinks': 'Enlaces de reclamo',
+    'employer.email': 'correo',
+    'employer.amount': 'monto (unidades base)',
+  },
+  pt: {
+    'claim.title': 'Você tem um pagamento',
+    'claim.to': 'Para',
+    'claim.amount': 'Valor',
+    'claim.status': 'Status',
+    'claim.loading': 'Carregando…',
+    'claim.loadError': 'Não foi possível carregar esta reivindicação.',
+    'claim.receive.title': 'Receba seus fundos',
+    'claim.receive.description': 'Entre com Google (zkLogin) — sem carteira, sem frase semente, zero gas. Ou conecte uma carteira diretamente.',
+    'claim.receive.google': 'Entrar com Google',
+    'claim.receive.connected': 'Conectado',
+    'claim.currency.label': 'Receber em moeda (opcional)',
+    'claim.currency.default': 'SUI (padrão)',
+    'claim.currency.help.default': 'Padrão: receber em SUI. Você pode escolher uma moeda diferente.',
+    'claim.currency.help.selected': 'Seu pagamento será automaticamente trocado via DeepBook V3 no momento da reivindicação. Proteção contra deslizamento habilitada.',
+    'claim.receive.btn': 'Receber pagamento',
+    'claim.receiving': 'Recebendo…',
+    'claim.claimed': 'Já reivindicado',
+    'claim.success': 'Recebido!',
+    'claim.swapped': 'trocado para',
+    'claim.error.wallet': 'Conecte uma carteira (ou entre com Google) para receber seus fundos.',
+    'claim.error.oauth': 'Google OAuth não configurado. Por favor conecte uma carteira.',
+    'claim.status.pending': 'pendente',
+    'claim.status.claimed': 'reivindicado',
+    'home.title': 'Veil',
+    'home.subtitle': 'Folha de pagamento global confidencial na Sui — os valores dos salários permanecem privados na cadeia, os destinatários recebem pagamentos em segundos com zero gas e sem frase semente.',
+    'home.employer': 'Console do empregador →',
+    'home.employer.desc': 'Crie uma execução de folha de pagamento, adicione destinatários, execute um pagamento confidencial em lote.',
+    'home.auditor': 'Painel de auditoria →',
+    'home.auditor.desc': 'Reconcilie uma execução e exporte um relatório.',
+    'home.recipient': 'Reivindicação do destinatário',
+    'home.recipient.desc': 'Destinatários abrem um link de reivindicação pessoal (ex. /claim/<token>) do seu e-mail.',
+    'home.signedIn': '✓ Conectado com Google',
+    'home.welcome': 'Bem-vindo',
+    'audit.title': 'Painel de auditoria',
+    'audit.apiKey': 'Chave API (opcional)',
+    'audit.runId': 'ID da execução (0x...)',
+    'audit.load': 'Carregar',
+    'audit.export': 'Exportar CSV',
+    'audit.exportLogs': 'Exportar registros de acesso',
+    'audit.email': 'E-mail',
+    'audit.amount': 'Valor',
+    'audit.target': 'Destino',
+    'audit.status': 'Status',
+    'audit.total': 'Total',
+    'audit.claimed': 'Reivindicado',
+    'audit.pending': 'Pendente',
+    'audit.accessLog': 'Registro de acesso',
+    'audit.entries': 'entradas',
+    'audit.authError': 'Autenticação falhou. Por favor verifique sua chave API.',
+    'employer.title': 'Console do empregador',
+    'employer.setup': '1. Configuração única',
+    'employer.setup.desc': 'Crie seu perfil de empregador + capacidades, depois cole uma moeda de financiamento.',
+    'employer.register': 'Registrar empregador',
+    'employer.employerId': 'ID do objeto do empregador (0x...)',
+    'employer.adminCap': 'ID do AdminCap (0x...)',
+    'employer.fundingCoin': 'ID da moeda de financiamento (0x... — uma moeda SUI que você possui)',
+    'employer.recipients': '2. Destinatários',
+    'employer.addRecipient': '+ adicionar destinatário',
+    'employer.removeRecipient': 'Remover destinatário',
+    'employer.execute': 'Executar pagamento confidencial',
+    'employer.working': 'Trabalhando…',
+    'employer.claimLinks': 'Links de reivindicação',
+    'employer.email': 'e-mail',
+    'employer.amount': 'valor (unidades base)',
+  },
+  zh: {
+    'claim.title': '您有一笔付款',
+    'claim.to': '收款人',
+    'claim.amount': '金额',
+    'claim.status': '状态',
+    'claim.loading': '加载中…',
+    'claim.loadError': '无法加载此领取信息。',
+    'claim.receive.title': '领取您的资金',
+    'claim.receive.description': '使用 Google 登录 (zkLogin) — 无需钱包、无需助记词、零 gas。或直接连接钱包。',
+    'claim.receive.google': '使用 Google 登录',
+    'claim.receive.connected': '已连接',
+    'claim.currency.label': '接收币种（可选）',
+    'claim.currency.default': 'SUI（默认）',
+    'claim.currency.help.default': '默认：接收 SUI。您可以选择其他币种。',
+    'claim.currency.help.selected': '您的付款将在领取时通过 DeepBook V3 自动兑换。已启用滑点保护。',
+    'claim.receive.btn': '领取付款',
+    'claim.receiving': '领取中…',
+    'claim.claimed': '已领取',
+    'claim.success': '已收到！',
+    'claim.swapped': '已兑换为',
+    'claim.error.wallet': '请连接钱包（或使用 Google 登录）以接收您的资金。',
+    'claim.error.oauth': 'Google OAuth 未配置。请连接钱包。',
+    'claim.status.pending': '待领取',
+    'claim.status.claimed': '已领取',
+    'home.title': 'Veil',
+    'home.subtitle': 'Sui 上的保密全球薪资 — 工资金额在链上保密，收款人几秒到账、零 gas、无需助记词。',
+    'home.employer': '雇主控制台 →',
+    'home.employer.desc': '创建发薪批次、添加收款人、执行保密批量发放。',
+    'home.auditor': '审计仪表板 →',
+    'home.auditor.desc': '对账一次发薪并导出报告。',
+    'home.recipient': '收款人领取',
+    'home.recipient.desc': '收款人通过邮件中的个人领取链接（例如 /claim/<token>）领取。',
+    'home.signedIn': '✓ 已通过 Google 登录',
+    'home.welcome': '欢迎',
+    'audit.title': '审计仪表板',
+    'audit.apiKey': 'API 密钥（可选）',
+    'audit.runId': '运行 ID (0x...)',
+    'audit.load': '加载',
+    'audit.export': '导出 CSV',
+    'audit.exportLogs': '导出访问日志',
+    'audit.email': '邮箱',
+    'audit.amount': '金额',
+    'audit.target': '目标币种',
+    'audit.status': '状态',
+    'audit.total': '总计',
+    'audit.claimed': '已领取',
+    'audit.pending': '待领取',
+    'audit.accessLog': '访问日志',
+    'audit.entries': '条记录',
+    'audit.authError': '认证失败。请检查您的 API 密钥。',
+    'employer.title': '雇主控制台',
+    'employer.setup': '1. 一次性设置',
+    'employer.setup.desc': '创建您的雇主档案 + 权限，然后粘贴一个资金 Coin。',
+    'employer.register': '注册雇主',
+    'employer.employerId': '雇主对象 ID (0x...)',
+    'employer.adminCap': 'AdminCap ID (0x...)',
+    'employer.fundingCoin': '资金 Coin 对象 ID (0x... — 您拥有的一个 SUI coin)',
+    'employer.recipients': '2. 收款人',
+    'employer.addRecipient': '+ 添加收款人',
+    'employer.removeRecipient': '删除收款人',
+    'employer.execute': '执行保密发放',
+    'employer.working': '处理中…',
+    'employer.claimLinks': '领取链接',
+    'employer.email': '邮箱',
+    'employer.amount': '金额（基础单位）',
+  },
+} as const;
+
+export type TranslationKey = keyof typeof translations.en;
+
+/**
+ * Detect browser language and map to supported locale.
+ */
+export function detectLocale(): Locale {
+  if (typeof navigator === 'undefined') return 'en';
+  
+  const lang = navigator.language.toLowerCase();
+  
+  if (lang.startsWith('zh')) return 'zh';
+  if (lang.startsWith('es')) return 'es';
+  if (lang.startsWith('pt')) return 'pt';
+  
+  return 'en';
+}
+
+/**
+ * Get a translation function for a specific locale.
+ */
+export function getTranslations(locale: Locale) {
+  const dict = translations[locale] || translations.en;
+  
+  return function t(key: TranslationKey): string {
+    return (dict as any)[key] || (translations.en as any)[key] || key;
+  };
+}
+
+/**
+ * React hook for translations (use in client components).
+ */
+export function useTranslation() {
+  const locale = detectLocale();
+  const t = getTranslations(locale);
+  
+  return { t, locale };
+}
+
+/**
+ * Get all supported locales with labels.
+ */
+export const SUPPORTED_LOCALES: { value: Locale; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Español' },
+  { value: 'pt', label: 'Português' },
+  { value: 'zh', label: '中文' },
+];
