@@ -68,11 +68,12 @@ veil/
 ├─ move/veil/                         # Sui Move package
 │  ├─ sources/payroll.move               # Core: Employer, PayrollRun, PayoutEscrow, Payslip
 │  ├─ sources/confidential_adapter.move  # W1: contra integration (wrap/unwrap/transfer)
-│  └─ tests/payroll_tests.move           # 11 tests: auth, state machine, claim, edge cases
+│  └─ tests/payroll_tests.move           # 16 tests: auth, state machine, claim, replay, security
 ├─ packages/sdk/                      # Shared TypeScript SDK
 │  ├─ src/ptb.ts                     #   PTB builders (buildExecuteRunTx, buildClaimToSenderTx)
 │  ├─ src/deepbook.ts                #   DeepBook V3 FX swap with mainnet pool registry
 │  ├─ src/confidential.ts            #   contra wrap/unwrap/transfer + manifest encode/decode
+│  ├─ src/walrus.ts                  #   Walrus/Seal encrypted blob storage (AES-GCM + fallback)
 │  ├─ src/client.ts                  #   VeilClient wrapper
 │  ├─ src/utils.ts                   #   idHash (keccak256), randomSecret
 │  └─ src/types.ts                   #   VeilConfig, RecipientInput, AuditEntry
@@ -81,17 +82,25 @@ veil/
 │  ├─ src/auth.ts                    #   API key authentication middleware
 │  ├─ src/email.ts                   #   Email notification service (console/SendGrid/SES)
 │  ├─ src/store.ts                   #   Persistent JSON file storage (survives restart)
-│  ├─ src/sui.ts                     #   Relayer keypair + tx execution
+│  ├─ src/sui.ts                     #   Relayer keypair + tx execution + sponsored flow
 │  ├─ src/config.ts                  #   Environment config loader
-│  └─ src/routes/                    #   claims.ts, runs.ts, audit.ts
+│  └─ src/routes/                    #   claims.ts, runs.ts, audit.ts, risk.ts
+├─ apps/indexer/                      # Event indexer
+│  ├─ src/index.ts                   #   Polls Sui events for veil::payroll module
+│  ├─ src/store.ts                   #   Persistent event store (JSON)
+│  └─ src/config.ts                  #   Indexer config
 ├─ apps/web/                          # Next.js frontend
 │  ├─ app/employer/page.tsx          #   Employer console
-│  ├─ app/claim/[token]/page.tsx     #   Recipient claim page (zkLogin + wallet)
-│  ├─ app/audit/page.tsx             #   Auditor dashboard + CSV export
+│  ├─ app/claim/[token]/page.tsx     #   Recipient claim page (zkLogin + wallet + currency selector)
+│  ├─ app/audit/page.tsx             #   Auditor dashboard + CSV export + access logs
 │  ├─ app/api/auth/callback/google/  #   Google OAuth callback for zkLogin
 │  ├─ app/page.tsx                   #   Home page with zkLogin status
 │  └─ app/providers.tsx              #   SuiClientProvider + WalletProvider
+├─ tests/e2e.ts                      # E2E integration test suite (12 tests)
 ├─ scripts/publish.sh                 # Publish the Move package
+├─ scripts/reset-devnet.sh            # One-click devnet rebuild + redeploy
+├─ Dockerfile                         # Multi-stage Docker (relayer, indexer, web)
+├─ docker-compose.yml                 # Full stack orchestration
 ├─ .github/workflows/ci.yml           # Move build/test + TS typecheck (strict)
 ├─ pnpm-workspace.yaml                # pnpm workspace config
 ├─ pnpm-lock.yaml                     # Dependency lockfile
@@ -205,9 +214,17 @@ See `.env.example` for the complete reference with comments.
 | `GET` | `/health` | — | Health check + store stats (runs, tokens, pending, claimed) |
 | `POST` | `/runs/register-tokens` | API key | Register claim tokens; sends email notifications |
 | `GET` | `/claims/:token` | — | Get claim info (email, amount, status) |
+| `POST` | `/claims/:token/build` | — | Build claim transaction for sponsored flow |
 | `POST` | `/claims/:token/claim` | — | Execute claim (relayer pays gas); optional DeepBook FX swap |
+| `POST` | `/claims/:token/execute-sponsored` | — | Execute a pre-signed sponsored transaction |
 | `GET` | `/audit/runs/:runId` | API key | Auditor reconciliation (entries + summary) |
 | `GET` | `/audit/runs` | API key | List all runs |
+| `GET` | `/audit/access-logs` | API key | Audit access logs (compliance) |
+| `GET` | `/audit/access-logs/csv` | API key | Export access logs as CSV |
+| `GET` | `/risk/address/:address` | API key | Check risk signals for an address (TRM/Merkle) |
+| `POST` | `/risk/monitor` | API key | Register address for ongoing monitoring |
+| `GET` | `/risk/investigate/:address` | API key | Deep investigation report |
+| `GET` | `/risk/stats` | API key | Risk distribution summary |
 
 ### SDK (`@veil/sdk`)
 
@@ -223,6 +240,10 @@ See `.env.example` for the complete reference with comments.
 | `idHash(secret)` | keccak256 hash (matches Move `sui::hash::keccak256`) |
 | `randomSecret()` | Generate one-time claim secret |
 | `encodeManifest/decodeManifest` | Run manifest serialization |
+| `publishBlob(data, passphrase, config?)` | Encrypt and publish blob to Walrus (or fallback) |
+| `retrieveBlob(blobId, passphrase, config?)` | Retrieve and decrypt blob from Walrus |
+| `encryptBlob/decryptBlob` | AES-256-GCM encryption helpers |
+| `buildSealPolicy(recipient, auditor, unlockAfter?)` | Build Seal access control policy |
 | `VeilClient` | High-level wrapper around SuiClient |
 
 ---
@@ -230,8 +251,11 @@ See `.env.example` for the complete reference with comments.
 ## Testing & CI
 
 ```bash
-# Move unit tests (11 tests)
+# Move unit tests (16 tests)
 sui move test --path move/veil
+
+# E2E integration tests (requires running relayer)
+npx tsx tests/e2e.ts
 
 # TypeScript typecheck
 pnpm run typecheck
@@ -252,6 +276,11 @@ pnpm run typecheck
 | `auditor_pubkey_readable` | Auditor public key is accessible |
 | `unauthorized_admin_cannot_finalize` | Wrong AdminCap on finalize triggers `ENotAuthorized` |
 | `claim_with_empty_proof_aborts` | Empty proof triggers `EBadProof` |
+| `double_claim_replay_prevented` | Escrow consumed on first claim — replay impossible |
+| `unauthorized_admin_cannot_escrow` | Wrong AdminCap on escrow triggers `ENotAuthorized` |
+| `unauthorized_admin_cannot_issue_payslip` | Wrong AdminCap on payslip triggers `ENotAuthorized` |
+| `issue_payslip_happy_path` | Payslip created and transferred to recipient |
+| `escrow_bound_to_run` | Escrows correctly bound to their parent run |
 
 `.github/workflows/ci.yml` runs Move build/test and TS typecheck on every push/PR. The Move job **fails hard** if the Sui CLI is unavailable or tests fail.
 
@@ -285,17 +314,53 @@ pnpm run typecheck
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Move contracts | ✅ Deployed to mainnet | Package `0x3d95e6f1...d38921a`, 11/11 tests passing, entry modifiers restored |
-| SDK | ✅ Complete | PTB builders, DeepBook V3 swap, contra wrap/unwrap, client wrapper |
-| Relayer | ✅ Production-ready | Persistent storage, API auth, email notifications, sponsored transactions |
+| Move contracts | ✅ Deployed to mainnet | Package `0x3d95e6f1...d38921a`, 16/16 tests passing, entry modifiers restored |
+| SDK | ✅ Complete | PTB builders, DeepBook V3 swap, contra wrap/unwrap, Walrus/Seal adapter, client wrapper |
+| Relayer | ✅ Production-ready | Persistent storage, API auth, email notifications, sponsored transactions, risk API |
 | Indexer | ✅ Event indexing | Polls Sui events, builds audit trail, privacy-preserving (no amounts) |
-| Frontend | ✅ Functional | Employer console, claim app (zkLogin + currency selector), audit dashboard (API key auth) |
+| Frontend | ✅ Functional | Employer console, claim app (zkLogin + currency selector + sponsored tx), audit dashboard (API key auth + access logs) |
 | CI/CD | ✅ Working | Move build/test + TS typecheck on every push/PR |
 | GitHub | ✅ Synced | https://github.com/0xCaptain888/veil |
 | Confidentiality (W1) | ✅ Adapter integrated | contra API documented, devnet beta ready, mainnet pending |
 | zkLogin (W3) | ✅ Sponsored transactions ready | Build/sign/execute flow implemented, Google OAuth integrated |
 | DeepBook FX (W4) | ✅ Fully integrated | V3 mainnet pools configured, swap logic with slippage protection, UI currency selector |
-| Walrus/Seal (W5) | ⏳ Interface defined | Needs publisher URL + encryption logic |
+| Walrus/Seal (W5) | ✅ Adapter implemented | AES-GCM encryption, publish/retrieve, Seal access policies, fallback local storage |
+| Security tests | ✅ 16 tests | Auth, state machine, claim validation, replay prevention, cross-run binding |
+| Audit logging | ✅ Implemented | Disk-persisted access logs, CSV export, compliance reporting |
+| Risk API | ✅ TRM/Merkle ready | Address check, monitoring, investigation, stats endpoints |
+| Docker | ✅ Containerized | Multi-stage Dockerfile + docker-compose.yml (relayer, indexer, web) |
+| Devnet reset | ✅ Script ready | One-click rebuild + redeploy + sample recipients |
+| i18n/a11y | ⏳ Partial | Localized amounts (Intl.NumberFormat), aria attributes on claim/audit pages |
+| E2E tests | ✅ Script ready | 12-test integration suite covering full API surface |
+
+### Completed items from development checklist
+
+| # | Item | Status |
+|---|------|--------|
+| 1-3 | `entry` modifiers on `register`, `claim_to_sender`, `issue_payslip` | ✅ Fixed |
+| 4 | DeepBook currency selector on claim page | ✅ Implemented |
+| 5 | Audit page API key authentication UI | ✅ Implemented |
+| 6 | Sponsored Transactions (build → sign → execute-sponsored) | ✅ Implemented |
+| 7 | Event Indexer | ✅ Implemented |
+| 8 | E2E integration tests | ✅ Script ready |
+| 9 | Security negative tests (replay, unauthorized, cross-run) | ✅ 5 new tests |
+| 10 | Walrus/Seal adapter | ✅ Implemented |
+| 11 | Docker containerization | ✅ Dockerfile + docker-compose |
+| 12 | Devnet reset script | ✅ scripts/reset-devnet.sh |
+| 13 | TRM/Merkle risk API | ✅ Endpoints ready |
+| 14 | Audit access logging | ✅ Disk-persisted + CSV export |
+| 17 | Localized amount display | ✅ Intl.NumberFormat |
+
+### Remaining items (manual tasks)
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 15 | Full i18n (multi-language) | ⏳ | Requires next-intl setup + translation files |
+| 16 | Full WCAG a11y audit | ⏳ | Partial: aria labels on key pages |
+| 18 | Low-bandwidth/mobile degradation | ⏳ | SMS notification fallback |
+| 22 | Backup demo video | ⏳ | Manual recording required |
+| 24 | Design partner / traction evidence | ⏳ | Manual outreach required |
+| 25 | Security audit (OZ/OtterSec) | ⏳ | Manual application required |
 
 See **`DEPLOYMENT_REPORT.md`** for the full deployment report with step-by-step next actions.
 
