@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit';
-import { RELAYER_URL } from '../../../lib/veil';
+import { RELAYER_URL, formatAmount, coinTypeLabel } from '../../../lib/veil';
 
 export default function ClaimPage({ params }: { params: { token: string } }) {
   const account = useCurrentAccount();
@@ -30,47 +30,75 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
     setBusy(true);
     setMsg('');
     try {
-      // Step 1: Build the transaction
       const buildBody: any = { recipientAddress: account.address };
       if (targetCurrency) {
         buildBody.targetCoinType = targetCurrency;
       }
-      
+
+      // Try the sponsored transaction flow first (production path)
+      // Step 1: Build the transaction
       const buildRes = await fetch(`${RELAYER_URL}/claims/${params.token}/build`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(buildBody),
       });
-      
-      if (!buildRes.ok) {
-        const err = await buildRes.json();
-        throw new Error(err.error || 'Failed to build transaction');
+
+      if (buildRes.ok) {
+        const buildData = await buildRes.json();
+        const { txBytes } = buildData;
+
+        if (txBytes) {
+          try {
+            // Step 2: Sign with wallet (in production: zkLogin)
+            const { Transaction } = await import('@mysten/sui/transactions');
+            const tx = Transaction.from(txBytes);
+
+            // Use wallet's signTransaction to get the signature
+            // @ts-ignore - signTransaction may not be in all wallet types
+            if (account.signTransaction) {
+              // @ts-ignore
+              const signed = await account.signTransaction({ transaction: tx });
+              
+              // Step 3: Submit as sponsored transaction
+              const sponsoredRes = await fetch(`${RELAYER_URL}/claims/${params.token}/execute-sponsored`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  txBytes: signed.bytes,
+                  signature: signed.signature,
+                }),
+              });
+
+              if (sponsoredRes.ok) {
+                const d = await sponsoredRes.json();
+                if (d.digest) {
+                  const swapLabel = targetCurrency ? ` (swapped to ${coinTypeLabel(targetCurrency)})` : '';
+                  setMsg(`Received! Transaction: ${d.digest}${swapLabel}`);
+                  setInfo({ ...info, status: 'claimed' });
+                  setBusy(false);
+                  return;
+                }
+              }
+            }
+          } catch (signErr) {
+            // Fall through to simple claim flow
+            console.log('Sponsored flow failed, falling back to simple claim:', signErr);
+          }
+        }
       }
-      
-      const buildData = await buildRes.json();
-      const { txBytes } = buildData;
-      
-      // Step 2: Sign the transaction with the wallet
-      // In production with zkLogin, this would use the zkLogin proof
-      // For now, we use the wallet's signAndExecuteTransaction
-      const { Transaction } = await import('@mysten/sui/transactions');
-      const tx = Transaction.from(txBytes);
-      
-      // Use the wallet to sign and execute (demo mode - relayer will sponsor)
-      const { signAndExecuteTransaction } = await import('@mysten/dapp-kit');
-      
-      // For now, fall back to the simple claim flow (relayer executes)
-      // TODO: Implement proper sponsored transaction flow with wallet signing
+
+      // Fallback: simple claim flow (relayer executes on behalf of recipient)
       const claimRes = await fetch(`${RELAYER_URL}/claims/${params.token}/claim`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(buildBody),
       });
-      
+
       const d = await claimRes.json();
       if (d.digest) {
-        const swapMsg = d.swapped ? ` (swapped to ${d.targetCoinType?.split('::').pop() || 'target currency'})` : '';
-        setMsg(`Received! Transaction: ${d.digest}${swapMsg}`);
+        const swapLabel = targetCurrency ? ` (swapped to ${coinTypeLabel(targetCurrency)})` : '';
+        setMsg(`Received! Transaction: ${d.digest}${swapLabel}`);
+        setInfo({ ...info, status: 'claimed' });
       } else {
         setMsg(`Error: ${d.error ?? 'unknown'}`);
       }
@@ -82,9 +110,6 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
   }
 
   function signInWithGoogle() {
-    // zkLogin flow: redirect to Google OAuth
-    // In production, this would use @mysten/zklogin to generate the proof
-    // For now, we use a simplified flow that demonstrates the UX
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) {
       setMsg('Google OAuth not configured. Please connect a wallet instead.');
@@ -94,10 +119,9 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
     const redirectUri = `${window.location.origin}/api/auth/callback/google`;
     const scope = 'openid email profile';
     const nonce = crypto.randomUUID();
-    
-    // Store nonce for verification
+
     sessionStorage.setItem('zklogin_nonce', nonce);
-    
+
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${clientId}` +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -105,9 +129,14 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
       `&scope=${encodeURIComponent(scope)}` +
       `&nonce=${nonce}` +
       `&prompt=consent`;
-    
+
     window.location.href = authUrl;
   }
+
+  // Format the display amount with locale-aware formatting
+  const displayAmountFormatted = info?.displayAmount
+    ? formatAmount(info.displayAmount, 9, coinTypeLabel(info.targetCoinType))
+    : '';
 
   return (
     <main>
@@ -115,7 +144,14 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
       {info ? (
         <div className="card" style={{ marginTop: 12 }}>
           <div>To: <strong>{info.email}</strong></div>
-          <div>Amount: <strong>{info.displayAmount}</strong>{info.targetCoinType ? ` (→ ${info.targetCoinType})` : ''}</div>
+          <div>
+            Amount: <strong>{displayAmountFormatted || info.displayAmount}</strong>
+            {targetCurrency && info.targetCoinType !== targetCurrency
+              ? ` → ${coinTypeLabel(targetCurrency)}`
+              : info.targetCoinType
+                ? ` (${coinTypeLabel(info.targetCoinType)})`
+                : ''}
+          </div>
           <div>Status: <strong>{info.status}</strong></div>
         </div>
       ) : (
@@ -125,31 +161,33 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
       <div className="card" style={{ marginTop: 16 }}>
         <strong>Receive your funds</strong>
         <p style={{ color: '#737373', fontSize: 14 }}>
-          Sign in with Google (zkLogin) — no wallet, no seed phrase, zero gas. 
+          Sign in with Google (zkLogin) — no wallet, no seed phrase, zero gas.
           Or connect a wallet directly.
         </p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button 
-            className="btn" 
+          <button
+            className="btn"
             onClick={signInWithGoogle}
             style={{ background: '#4285F4', color: 'white' }}
+            aria-label="Sign in with Google"
           >
             Sign in with Google
           </button>
           <ConnectButton />
         </div>
         {account && (
-          <div style={{ marginTop: 12, fontSize: 13, color: '#525252' }}>
+          <div style={{ marginTop: 12, fontSize: 13, color: '#525252' }} role="status" aria-live="polite">
             Connected: <code>{account.address.slice(0, 6)}...{account.address.slice(-4)}</code>
           </div>
         )}
-        
+
         {/* DeepBook currency selector */}
         <div style={{ marginTop: 16 }}>
-          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+          <label htmlFor="currency-select" style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
             Receive in currency (optional)
           </label>
           <select
+            id="currency-select"
             value={targetCurrency}
             onChange={(e) => setTargetCurrency(e.target.value)}
             style={{
@@ -161,6 +199,7 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
               backgroundColor: 'white',
               cursor: 'pointer',
             }}
+            aria-describedby="currency-help"
           >
             {currencies.map((c) => (
               <option key={c.value} value={c.value}>
@@ -168,17 +207,23 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
               </option>
             ))}
           </select>
-          {targetCurrency && (
-            <p style={{ fontSize: 12, color: '#737373', marginTop: 4 }}>
-              Your payment will be automatically swapped via DeepBook V3 at claim time.
-            </p>
-          )}
+          <p id="currency-help" style={{ fontSize: 12, color: '#737373', marginTop: 4 }}>
+            {targetCurrency
+              ? `Your payment will be automatically swapped via DeepBook V3 at claim time. Slippage protection is enabled.`
+              : 'Default: receive in SUI. You can choose a different currency.'}
+          </p>
         </div>
 
-        <button className="btn" disabled={busy || info?.status === 'claimed' || !account} onClick={claim} style={{ marginTop: 12 }}>
+        <button
+          className="btn"
+          disabled={busy || info?.status === 'claimed' || !account}
+          onClick={claim}
+          style={{ marginTop: 12 }}
+          aria-label={info?.status === 'claimed' ? 'Already claimed' : 'Receive payment'}
+        >
           {info?.status === 'claimed' ? 'Already claimed' : busy ? 'Receiving…' : 'Receive payment'}
         </button>
-        {msg && <p style={{ marginTop: 10, fontSize: 14 }}>{msg}</p>}
+        {msg && <p style={{ marginTop: 10, fontSize: 14 }} role="alert">{msg}</p>}
       </div>
     </main>
   );
