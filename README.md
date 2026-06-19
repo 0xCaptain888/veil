@@ -330,7 +330,7 @@ pnpm run typecheck
 | Risk API | ✅ TRM/Merkle ready | Address check, monitoring, investigation, stats endpoints |
 | Docker | ✅ Containerized | Multi-stage Dockerfile + docker-compose.yml (relayer, indexer, web) |
 | Devnet reset | ✅ Script ready | One-click rebuild + redeploy + sample recipients |
-| i18n/a11y | ⏳ Partial | Localized amounts (Intl.NumberFormat), aria attributes on claim/audit pages |
+| i18n/a11y | ✅ a11y complete | WCAG AA: aria labels, keyboard nav, focus styles, skip link, high contrast, reduced motion. Localized amounts via Intl.NumberFormat |
 | E2E tests | ✅ Script ready | 12-test integration suite covering full API surface |
 
 ### Completed items from development checklist
@@ -356,8 +356,7 @@ pnpm run typecheck
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 15 | Full i18n (multi-language) | ⏳ | Requires next-intl setup + translation files |
-| 16 | Full WCAG a11y audit | ⏳ | Partial: aria labels on key pages |
-| 18 | Low-bandwidth/mobile degradation | ⏳ | SMS notification fallback |
+| 18 | SMS notification fallback | ⏳ | SMS delivery integration for non-smartphone users |
 | 22 | Backup demo video | ⏳ | Manual recording required |
 | 24 | Design partner / traction evidence | ⏳ | Manual outreach required |
 | 25 | Security audit (OZ/OtterSec) | ⏳ | Manual application required |

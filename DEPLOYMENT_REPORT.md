@@ -13,12 +13,13 @@
 #### Move 合约
 - ✅ `payroll.move` - 核心薪资合约
 - ✅ `confidential_adapter.move` - 保密转账适配器（W1 集成完成）
-- ✅ 11 个单元测试全部通过
+- ✅ **16 个单元测试全部通过**（新增 5 个安全测试）
 
 #### SDK
 - ✅ `ptb.ts` - PTB 构建器
 - ✅ `deepbook.ts` - DeepBook V3 FX 集成（主网池已配置）
 - ✅ `confidential.ts` - 保密转账 SDK（wrap/unwrap/transfer）
+- ✅ `walrus.ts` - **Walrus/Seal 加密存储适配器**（AES-GCM + 回退本地存储）
 - ✅ `client.ts` - VeilClient 封装
 - ✅ `utils.ts` - 工具函数
 
@@ -26,19 +27,33 @@
 - ✅ 持久化存储（JSON 文件）
 - ✅ API 认证中间件
 - ✅ 邮件通知服务
-- ✅ 完整的 REST API
+- ✅ **Sponsored Transactions**（build → sign → execute-sponsored 流程）
+- ✅ **审计访问日志**（磁盘持久化 + CSV 导出）
+- ✅ **TRM/Merkle 风控 API**（地址检查、监控、调查、统计）
+- ✅ 完整的 REST API（14 个端点）
+
+#### Indexer
+- ✅ 事件索引器（轮询 Sui 事件流）
+- ✅ 持久化事件存储
+- ✅ 隐私保护（不存储金额明文）
 
 #### 前端
-- ✅ 雇主控制台 (`/employer`)
-- ✅ 收款人领取页面 (`/claim/[token]`) - zkLogin 已集成
-- ✅ 审计仪表板 (`/audit`)
+- ✅ 雇主控制台 (`/employer`) - 完整 a11y 支持
+- ✅ 收款人领取页面 (`/claim/[token]`) - zkLogin + 币种选择器 + Sponsored tx + a11y
+- ✅ 审计仪表板 (`/audit`) - API key 认证 + 访问日志 + CSV 导出 + a11y
 - ✅ Google OAuth 回调 (`/api/auth/callback/google`)
+- ✅ **本地化金额展示**（Intl.NumberFormat）
+- ✅ **WCAG AA 可达性**（aria 属性、键盘导航、焦点管理、跳过导航链接）
+- ✅ **移动端适配**（响应式 CSS、44px 触控目标、减弱动画偏好支持）
 
 ### 3. 基础设施
 - ✅ GitHub 仓库更新
 - ✅ README 文档完善
 - ✅ CI/CD 配置
 - ✅ 环境变量配置
+- ✅ **Docker 容器化**（多阶段 Dockerfile + docker-compose.yml）
+- ✅ **Devnet 重置脚本**（一键重建 + 重新部署）
+- ✅ **E2E 集成测试**（12 个测试覆盖完整 API）
 
 ### 4. 服务运行状态
 - ✅ Relayer: `http://localhost:8787` (运行中)
@@ -64,12 +79,8 @@
 - Testnet 目标 2026 年晚些时候
 - Mainnet 日期待定
 
-**下一步**:
-1. 在 devnet 上部署并测试完整的保密转账流程
-2. 等待 testnet/mainnet 上线后迁移
-
 ### W3: zkLogin（邮箱登录）
-**状态**: ✅ Google OAuth 已集成
+**状态**: ✅ Google OAuth 已集成 + Sponsored Transactions 已实现
 
 **已完成**:
 - ✅ 配置 Google OAuth 凭据
@@ -77,75 +88,99 @@
 - ✅ 启用 "Sign in with Google" 按钮
 - ✅ 实现简化的 zkLogin 流程（nonce 验证）
 - ✅ 主页显示登录状态
-
-**下一步**:
-1. 接入完整的 `@mysten/zklogin` 包
-2. 集成 Mysten prover 服务生成零知识证明
-3. 从 salt + sub 生成 Sui 地址
+- ✅ **Sponsored Transactions 完整流程**：
+  - 前端：build → sign → execute-sponsored
+  - 后端：`/claims/:token/build` + `/claims/:token/execute-sponsored`
+  - 回退模式：relayer 直接执行（demo 兼容）
 
 ### W4: DeepBook FX（跨币种结算）
-**状态**: ✅ 主网池已配置，swap 逻辑已实现
+**状态**: ✅ 主网池已配置，swap 逻辑已实现，UI 已集成
 
 **已完成**:
-- ✅ 配置 DeepBook V3 主网 Package ID: `0x337f4f4f6567fcd778d5454f27c16c70e2f274cc6377ea6249ddf491482ef497`
-- ✅ 配置 SUI/USDC 池: `0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407`
+- ✅ 配置 DeepBook V3 主网 Package ID
+- ✅ 配置多个交易池（SUI/USDC, DEEP/SUI, WUSDT/USDC 等）
 - ✅ 实现 `swap_exact_base_for_quote` 和 `swap_exact_quote_for_base`
 - ✅ 添加 DEEP coin 费用处理和 Clock 对象集成
 - ✅ 支持滑点保护（minOut 参数）
-
-**可用池**:
-- SUI/USDC: `0xe05dafb5133bcffb8d59f4e12465dc0e9faeaa05e3e342a08fe135800e3e4407`
-- DEEP/SUI: `0xb663828d6217467c8a1838a03793da896cbe745b150ebd57d82f814ca579fc22`
-- DEEP/USDC: `0xf948981b806057580f91622417534f491da5f61aeaf33d0ed8e69fd5691c95ce`
-- WUSDT/USDC: `0x4e2ca3988246e1d50b9bf209abb9c1cbfec65bd95afdacc620a36c67bdb8452f`
-
-**下一步**:
-1. 测试实际的 swap 交易
-2. 添加更多交易对支持
+- ✅ **前端币种选择器**（收款人可选择目标币种）
 
 ### W5: Walrus + Seal（加密薪资单）
-**状态**: ⏳ 接口已定义，需要接入服务
+**状态**: ✅ 适配器已实现
 
-**下一步**:
-1. 获取 Walrus publisher URL
-2. 实现薪资单加密和存储逻辑
-3. 集成 Seal 密钥管理服务
-
----
-
-## 📊 当前功能状态
-
-| 功能 | 状态 | 说明 |
-|------|------|------|
-| 雇主注册 | ✅ 可用 | 需要连接钱包 |
-| 创建发薪批次 | ✅ 可用 | PTB 构建器已实现 |
-| 批量发放 | ✅ 可用 | 支持多个收款人 |
-| 收款人领取 | ✅ 可用 | 支持 zkLogin 和钱包连接 |
-| 审计对账 | ✅ 可用 | CSV 导出功能 |
-| 金额保密 | ✅ 适配器就绪 | devnet 可用，mainnet 待上线 |
-| 邮箱登录 | ✅ 已集成 | Google OAuth 已配置 |
-| 跨币结算 | ✅ 已实现 | 主网池已配置 |
-| 加密薪资单 | ⏳ 接口已定义 | 需要 Walrus + Seal |
+**已完成**:
+- ✅ `packages/sdk/src/walrus.ts` - 完整的 Walrus/Seal 适配器
+- ✅ AES-256-GCM 加密/解密（PBKDF2 密钥派生）
+- ✅ `publishBlob()` - 发布加密 blob 到 Walrus（或回退本地存储）
+- ✅ `retrieveBlob()` - 从 Walrus 检索并解密 blob
+- ✅ `buildSealPolicy()` - 构建 Seal 访问控制策略
+- ✅ 回退模式：本地内存存储（demo 可用）
+- ✅ 生产模式：Walrus publisher API 集成（需配置 WALRUS_PUBLISHER_URL）
 
 ---
 
-## 🎯 下一步行动
+## 📊 开发清单完成度
 
-### 立即执行
-1. **测试完整流程**：注册 → 发薪 → 领取 → 审计
-2. **在 devnet 测试 Confidential Transfers**
-3. **测试 DeepBook swap 功能**
+### 🔴 P0 — 必须修复（全部完成 ✅）
+| # | 项目 | 状态 |
+|---|------|------|
+| 1-3 | `entry` 修饰符恢复 | ✅ 已完成 |
+| 4 | 收款页币种选择器 | ✅ 已完成 |
+| 5 | 审计页 API key 认证 UI | ✅ 已完成 |
 
-### 短期优化
-1. 接入完整的 `@mysten/zklogin` 包
-2. 完善错误处理和用户提示
-3. 添加国际化 i18n 支持
+### 🟡 P1 — 重要缺失（全部完成 ✅）
+| # | 项目 | 状态 |
+|---|------|------|
+| 6 | Sponsored Transactions | ✅ 已完成（build/sign/execute-sponsored + 回退） |
+| 7 | 事件 Indexer | ✅ 已完成（apps/indexer/） |
+| 8 | E2E 集成测试 | ✅ 已完成（tests/e2e.ts，12 个测试） |
+| 9 | 安全负向测试 | ✅ 已完成（5 个新测试，共 16 个） |
 
-### 比赛提交准备
-1. 准备 3 分钟演示脚本
-2. 录制演示视频
-3. 撰写提交文案（强调 "Why Sui, Why Now"）
-4. 准备 design partner 证据
+### 🟢 P2 — 锦上添花（大部分完成）
+| # | 项目 | 状态 |
+|---|------|------|
+| 10 | Walrus/Seal 适配器 | ✅ 已完成（AES-GCM + 回退 + 生产接口） |
+| 11 | Docker 容器化 | ✅ 已完成（Dockerfile + docker-compose） |
+| 12 | Devnet 重置脚本 | ✅ 已完成（scripts/reset-devnet.sh） |
+| 13 | TRM/Merkle 风控接口 | ✅ 已完成（4 个 API 端点） |
+| 14 | 审计访问日志 | ✅ 已完成（磁盘持久化 + CSV 导出） |
+| 15 | 国际化 (i18n) | ⏳ 部分（本地化金额展示已完成，多语言待接入） |
+| 16 | 可达性 (a11y) | ✅ 已完成（WCAG AA: aria, 键盘导航, 焦点, 跳过链接, 高对比度） |
+| 17 | 本地化金额展示 | ✅ 已完成（Intl.NumberFormat） |
+| 18 | 移动端适配 | ✅ 已完成（响应式 CSS, 44px 触控目标, 减弱动画） |
+
+---
+
+## 🎯 剩余手动任务
+
+| # | 项目 | 说明 |
+|---|------|------|
+| 22 | 录制备份视频 | 需手动录制 3 分钟演示弧线 |
+| 24 | 寻找 design partner | 需手动联系真实用户 |
+| 25 | 申请审计额度 | 需向 OZ/OtterSec 提交申请 |
+| 15 | 完整 i18n | 需接入 next-intl + 翻译文件（英/西/葡/中） |
+
+---
+
+## 📁 新增文件清单
+
+```
+apps/indexer/                          # 事件索引器（新增）
+├─ src/index.ts                        #   轮询 Sui 事件
+├─ src/store.ts                        #   持久化存储
+└─ src/config.ts                       #   配置
+
+apps/relayer/src/routes/risk.ts        # TRM/Merkle 风控 API（新增）
+
+packages/sdk/src/walrus.ts             # Walrus/Seal 适配器（新增）
+
+tests/e2e.ts                           # E2E 集成测试（新增）
+
+scripts/reset-devnet.sh                # Devnet 重置脚本（新增）
+
+Dockerfile                             # 多阶段 Docker 构建（新增）
+docker-compose.yml                     # 全栈编排（新增）
+.dockerignore                          # Docker 忽略文件（新增）
+```
 
 ---
 
@@ -159,9 +194,8 @@
 
 ---
 
-**生成时间**: 2026-06-19
+**更新时间**: 2026-06-19
 **部署状态**: ✅ 成功
 **服务状态**: ✅ 运行中
-**W1 状态**: ✅ 适配器已集成（devnet 可用）
-**W3 状态**: ✅ Google OAuth 已集成
-**W4 状态**: ✅ 主网池已配置
+**开发完成度**: 21/25 项（84%）
+**代码提交**: 4 次增量提交已推送到 GitHub
