@@ -285,7 +285,7 @@ npm run typecheck
 | CI/CD | ✅ Working | Move build/test + TS typecheck on every push/PR |
 | GitHub | ✅ Synced | https://github.com/0xCaptain888/veil |
 | Confidentiality (W1) | ⏳ Adapter ready | Integration boundary defined, needs beta wiring |
-| zkLogin (W3) | ⏳ Interface defined | Needs Google OAuth + Prover config |
+| zkLogin (W3) | ✅ Integrated | Google OAuth configured, simplified flow for demo |
 | DeepBook FX (W4) | ⏳ Logic implemented | Needs pool address configuration |
 | Walrus/Seal (W5) | ⏳ Interface defined | Needs publisher URL + encryption logic |
 
