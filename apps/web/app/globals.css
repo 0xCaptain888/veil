@@ -8,3 +8,62 @@ body { background: #fafafa; color: #171717; font-family: ui-sans-serif, system-u
 .btn { background: #111; color: #fff; border-radius: 8px; padding: 8px 14px; font-weight: 600; }
 .btn:disabled { opacity: .5; }
 .input { border: 1px solid #d4d4d4; border-radius: 8px; padding: 8px 10px; width: 100%; }
+
+/* Skip link for keyboard navigation (a11y) */
+.skip-link:focus {
+  position: fixed !important;
+  left: 50% !important;
+  top: 8px !important;
+  transform: translateX(-50%);
+  width: auto !important;
+  height: auto !important;
+  padding: 8px 16px;
+  background: #111;
+  color: #fff;
+  border-radius: 6px;
+  z-index: 9999;
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+/* Focus styles for keyboard navigation (a11y — WCAG AA) */
+.btn:focus-visible,
+.input:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 640px) {
+  .card { padding: 16px; }
+  .btn { padding: 10px 16px; font-size: 15px; }
+  .input { padding: 10px 12px; font-size: 15px; }
+  
+  /* Improve touch targets (min 44x44px per WCAG) */
+  .btn { min-height: 44px; }
+  .input { min-height: 44px; }
+  select { min-height: 44px; }
+  
+  /* Stack flex containers on mobile */
+  div[style*="display: flex"] {
+    flex-wrap: wrap;
+  }
+}
+
+/* Reduced motion preference (a11y) */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card { border-width: 2px; border-color: #000; }
+  .btn { border: 2px solid #fff; }
+  .input { border-width: 2px; border-color: #000; }
+}

@@ -109,50 +109,52 @@ export default function EmployerPage() {
 
   return (
     <main>
-      <a href="/" style={{ color: '#737373' }}>← home</a>
+      <a href="/" style={{ color: '#737373' }} aria-label="Go to home page">← home</a>
       <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 8 }}>Employer console</h1>
       <div style={{ margin: '12px 0' }}><ConnectButton /></div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <strong>1. One-time setup</strong>
-        <p style={{ color: '#737373', fontSize: 14 }}>Create your employer profile + capabilities, then paste a funding coin.</p>
-        <button className="btn" disabled={busy} onClick={register}>Register employer</button>
+        <strong id="setup-heading">1. One-time setup</strong>
+        <p style={{ color: '#737373', fontSize: 14 }} aria-describedby="setup-heading">Create your employer profile + capabilities, then paste a funding coin.</p>
+        <button className="btn" disabled={busy} onClick={register} aria-label="Register employer on-chain">Register employer</button>
         <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-          <input className="input" placeholder="Employer object id (0x...)" value={employerObjectId} onChange={(e) => setEmployerObjectId(e.target.value)} />
-          <input className="input" placeholder="AdminCap id (0x...)" value={adminCapId} onChange={(e) => setAdminCapId(e.target.value)} />
-          <input className="input" placeholder="Funding Coin object id (0x... — a SUI coin you own)" value={fundingCoinId} onChange={(e) => setFundingCoinId(e.target.value)} />
+          <input className="input" placeholder="Employer object id (0x...)" value={employerObjectId} onChange={(e) => setEmployerObjectId(e.target.value)} aria-label="Employer object ID" />
+          <input className="input" placeholder="AdminCap id (0x...)" value={adminCapId} onChange={(e) => setAdminCapId(e.target.value)} aria-label="AdminCap object ID" />
+          <input className="input" placeholder="Funding Coin object id (0x... — a SUI coin you own)" value={fundingCoinId} onChange={(e) => setFundingCoinId(e.target.value)} aria-label="Funding coin object ID" />
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <strong>2. Recipients</strong>
-        <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+        <strong id="recipients-heading">2. Recipients</strong>
+        <div style={{ display: 'grid', gap: 8, marginTop: 8 }} role="list" aria-labelledby="recipients-heading">
           {rows.map((row, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8 }}>
-              <input className="input" placeholder="email" value={row.email} onChange={(e) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))} />
-              <input className="input" placeholder="amount (base units)" value={row.amount} onChange={(e) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, amount: e.target.value } : r)))} style={{ maxWidth: 200 }} />
-              <button className="btn" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} style={{ background: '#ef4444' }}>✕</button>
+            <div key={i} style={{ display: 'flex', gap: 8 }} role="listitem">
+              <input className="input" placeholder="email" value={row.email} onChange={(e) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))} aria-label={`Recipient ${i + 1} email`} />
+              <input className="input" placeholder="amount (base units)" value={row.amount} onChange={(e) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, amount: e.target.value } : r)))} style={{ maxWidth: 200 }} aria-label={`Recipient ${i + 1} amount`} />
+              <button className="btn" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} style={{ background: '#ef4444' }} aria-label={`Remove recipient ${i + 1}`}>✕</button>
             </div>
           ))}
-          <button className="btn" style={{ background: '#404040' }} onClick={() => setRows((rs) => [...rs, { email: '', amount: '' }])}>+ add recipient</button>
+          <button className="btn" style={{ background: '#404040' }} onClick={() => setRows((rs) => [...rs, { email: '', amount: '' }])} aria-label="Add new recipient">+ add recipient</button>
         </div>
       </div>
 
-      <button className="btn" disabled={busy} onClick={executeRun}>{busy ? 'Working…' : 'Execute confidential payout'}</button>
+      <button className="btn" disabled={busy} onClick={executeRun} aria-label="Execute confidential payout transaction">
+        {busy ? 'Working…' : 'Execute confidential payout'}
+      </button>
 
       {links.length > 0 && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 16 }} role="region" aria-label="Claim links">
           <strong>Claim links</strong>
           {links.map((l) => (
             <div key={l.url} style={{ fontSize: 14, marginTop: 6 }}>
-              {l.email}: <a href={l.url}>{l.url}</a>
+              {l.email}: <a href={l.url} aria-label={`Claim link for ${l.email}`}>{l.url}</a>
             </div>
           ))}
         </div>
       )}
 
       {log.length > 0 && (
-        <pre style={{ marginTop: 16, background: '#111', color: '#0f0', padding: 12, borderRadius: 8, whiteSpace: 'pre-wrap', fontSize: 12 }}>{log.join('\n')}</pre>
+        <pre style={{ marginTop: 16, background: '#111', color: '#0f0', padding: 12, borderRadius: 8, whiteSpace: 'pre-wrap', fontSize: 12 }} role="log" aria-label="Transaction log" aria-live="polite">{log.join('\n')}</pre>
       )}
     </main>
   );

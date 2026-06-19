@@ -35,7 +35,7 @@ export default function Home() {
       </p>
       
       {userInfo && (
-        <div className="card" style={{ marginTop: 16, background: '#f0fdf4', border: '1px solid #86efac' }}>
+        <div className="card" style={{ marginTop: 16, background: '#f0fdf4', border: '1px solid #86efac' }} role="status" aria-live="polite">
           <strong style={{ color: '#166534' }}>✓ Signed in with Google</strong>
           <div style={{ fontSize: 14, color: '#166534', marginTop: 4 }}>
             Welcome, {userInfo.name || userInfo.email}
@@ -44,25 +44,25 @@ export default function Home() {
       )}
       
       {error && (
-        <div className="card" style={{ marginTop: 16, background: '#fef2f2', border: '1px solid #fca5a5' }}>
+        <div className="card" style={{ marginTop: 16, background: '#fef2f2', border: '1px solid #fca5a5' }} role="alert">
           <strong style={{ color: '#991b1b' }}>✗ {error}</strong>
         </div>
       )}
       
-      <div style={{ display: 'grid', gap: 16, marginTop: 24 }}>
-        <Link className="card" href="/employer">
+      <nav style={{ display: 'grid', gap: 16, marginTop: 24 }} aria-label="Main navigation">
+        <Link className="card" href="/employer" aria-label="Go to employer console">
           <strong>Employer console →</strong>
           <div style={{ color: '#737373' }}>Create a payroll run, add recipients, execute a confidential batch payout.</div>
         </Link>
-        <Link className="card" href="/audit">
+        <Link className="card" href="/audit" aria-label="Go to auditor dashboard">
           <strong>Auditor dashboard →</strong>
           <div style={{ color: '#737373' }}>Reconcile a run and export a report.</div>
         </Link>
-        <div className="card">
+        <div className="card" role="region" aria-label="Recipient claim information">
           <strong>Recipient claim</strong>
           <div style={{ color: '#737373' }}>Recipients open a personal claim link (e.g. /claim/&lt;token&gt;) from their email.</div>
         </div>
-      </div>
+      </nav>
     </main>
   );
 }
