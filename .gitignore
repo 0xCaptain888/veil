@@ -1,0 +1,27 @@
+# deps
+node_modules/
+.pnp.*
+.yarn/*
+
+# env / secrets
+.env
+.env.local
+*.key
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Move
+move/veil/build/
+
+# Relayer data (persistent storage)
+data/
+
+# misc
+.DS_Store
+*.log

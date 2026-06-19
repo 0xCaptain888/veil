@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  move:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Sui CLI
+        run: |
+          set -e
+          echo "Installing Sui CLI..."
+          # Download the latest mainnet release for Linux x86_64
+          curl -fLJ -o sui.tgz "https://github.com/MystenLabs/sui/releases/latest/download/sui-mainnet-Linux-x86_64.tgz"
+          tar -xzf sui.tgz -C /usr/local/bin/ ./sui
+          chmod +x /usr/local/bin/sui
+          sui --version
+          rm sui.tgz
+
+      - name: Move build
+        run: |
+          sui move build --path move/veil
+
+      - name: Move test
+        run: |
+          sui move test --path move/veil
+
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run typecheck --if-present

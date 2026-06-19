@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+body { background: #fafafa; color: #171717; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+.card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 20px; }
+.btn { background: #111; color: #fff; border-radius: 8px; padding: 8px 14px; font-weight: 600; }
+.btn:disabled { opacity: .5; }
+.input { border: 1px solid #d4d4d4; border-radius: 8px; padding: 8px 10px; width: 100%; }

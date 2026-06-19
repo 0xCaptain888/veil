@@ -1,0 +1,14 @@
+{
+  "name": "veil",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Veil — confidential payroll & cross-border payout rail on Sui.",
+  "license": "MIT",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:relayer": "npm --workspace @veil/relayer run dev",
+    "dev:web": "npm --workspace @veil/web run dev",
+    "typecheck": "npm --workspaces --if-present run typecheck",
+    "build": "npm --workspaces --if-present run build"
+  }
+}
