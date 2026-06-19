@@ -1,7 +1,7 @@
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import type { Transaction } from '@mysten/sui/transactions';
-import type { VeilConfig } from './types.js';
-import { buildExecuteRunTx, buildClaimToSenderTx } from './ptb.js';
+import type { VeilConfig } from './types';
+import { buildExecuteRunTx, buildClaimToSenderTx } from './ptb';
 
 export class VeilClient {
   readonly cfg: VeilConfig;

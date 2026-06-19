@@ -1,6 +1,6 @@
 import { Transaction } from '@mysten/sui/transactions';
-import type { VeilConfig, RecipientInput } from './types.js';
-import { toByteArray } from './utils.js';
+import type { VeilConfig, RecipientInput } from './types';
+import { toByteArray } from './utils';
 
 /**
  * Build the payroll-run PTB (atomic, all-or-nothing):

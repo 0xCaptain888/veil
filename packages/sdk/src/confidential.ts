@@ -8,7 +8,7 @@
  * W1: replace withdrawal (see veil::confidential_adapter) with the official
  * Confidential Transfers beta so amounts are hidden on-chain too.
  */
-import type { AuditEntry } from './types.js';
+import type { AuditEntry } from './types';
 
 export function encodeManifest(entries: AuditEntry[]): Uint8Array {
   return new TextEncoder().encode(JSON.stringify(entries));

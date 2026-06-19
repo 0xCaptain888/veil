@@ -1,6 +1,6 @@
-export * from './types.js';
-export * from './utils.js';
-export * from './ptb.js';
-export * from './deepbook.js';
-export * from './confidential.js';
-export { VeilClient } from './client.js';
+export * from './types';
+export * from './utils';
+export * from './ptb';
+export * from './deepbook';
+export * from './confidential';
+export { VeilClient } from './client';

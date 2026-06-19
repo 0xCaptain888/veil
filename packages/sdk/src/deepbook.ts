@@ -1,5 +1,5 @@
 import type { Transaction, TransactionObjectArgument } from '@mysten/sui/transactions';
-import type { VeilConfig } from './types.js';
+import type { VeilConfig } from './types';
 
 /**
  * DeepBook V3 swap configuration for cross-currency settlement (W4).
