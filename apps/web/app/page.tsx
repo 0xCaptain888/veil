@@ -1,6 +1,31 @@
+'use client';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const [userInfo, setUserInfo] = useState<{ email: string; name: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const zklogin = searchParams.get('zklogin');
+    const errorParam = searchParams.get('error');
+    
+    if (errorParam) {
+      setError(`Authentication error: ${errorParam}`);
+    }
+    
+    if (zklogin) {
+      try {
+        const decoded = JSON.parse(Buffer.from(zklogin, 'base64').toString());
+        setUserInfo({ email: decoded.email, name: decoded.name });
+      } catch (e) {
+        console.error('Failed to decode zklogin token:', e);
+      }
+    }
+  }, [searchParams]);
+
   return (
     <main>
       <h1 style={{ fontSize: 30, fontWeight: 800 }}>Veil</h1>
@@ -8,6 +33,22 @@ export default function Home() {
         Confidential global payroll on Sui — salary amounts stay private on-chain, recipients get paid in
         seconds with zero gas and no seed phrase.
       </p>
+      
+      {userInfo && (
+        <div className="card" style={{ marginTop: 16, background: '#f0fdf4', border: '1px solid #86efac' }}>
+          <strong style={{ color: '#166534' }}>✓ Signed in with Google</strong>
+          <div style={{ fontSize: 14, color: '#166534', marginTop: 4 }}>
+            Welcome, {userInfo.name || userInfo.email}
+          </div>
+        </div>
+      )}
+      
+      {error && (
+        <div className="card" style={{ marginTop: 16, background: '#fef2f2', border: '1px solid #fca5a5' }}>
+          <strong style={{ color: '#991b1b' }}>✗ {error}</strong>
+        </div>
+      )}
+      
       <div style={{ display: 'grid', gap: 16, marginTop: 24 }}>
         <Link className="card" href="/employer">
           <strong>Employer console →</strong>
