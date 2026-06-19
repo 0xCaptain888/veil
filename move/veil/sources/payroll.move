@@ -98,7 +98,8 @@ module veil::payroll {
     }
 
     /// Entry convenience: create an employer and send the objects/caps to the sender.
-    public fun register(name: vector<u8>, auditor_pubkey: vector<u8>, ctx: &mut TxContext) {
+    #[allow(lint(public_entry))]
+    public entry fun register(name: vector<u8>, auditor_pubkey: vector<u8>, ctx: &mut TxContext) {
         let (emp, admin, auditor) = create_employer(name, auditor_pubkey, ctx);
         let who = tx_context::sender(ctx);
         transfer::transfer(emp, who);
@@ -187,7 +188,8 @@ module veil::payroll {
     }
 
     /// Entry wrapper: claim and deliver straight to the sender (no FX).
-    public fun claim_to_sender<T>(
+    #[allow(lint(public_entry))]
+    public entry fun claim_to_sender<T>(
         escrow: PayoutEscrow<T>,
         proof_of_id: vector<u8>,
         ctx: &mut TxContext,
@@ -197,7 +199,8 @@ module veil::payroll {
     }
 
     // ===== Payslip (encrypted blob ref on Walrus) =====
-    public fun issue_payslip(
+    #[allow(lint(public_entry))]
+    public entry fun issue_payslip(
         run: &PayrollRun,
         cap: &AdminCap,
         recipient: address,
