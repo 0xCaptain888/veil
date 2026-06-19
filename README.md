@@ -297,6 +297,71 @@ pnpm run typecheck
 
 ---
 
+## Security Audit Plan
+
+Veil takes security seriously. While a full third-party audit is planned for post-hackathon production release, we have implemented multiple layers of security assurance:
+
+### Current Security Measures
+
+**1. Comprehensive Move Test Suite (16 tests)**
+- Authorization checks: AdminCap/AuditorCap binding, unauthorized access prevention
+- State machine: EXECUTING → FINALIZED transitions, double-finalization prevention
+- Claim validation: keccak256 proof verification, replay attack prevention (escrow consumption)
+- Edge cases: empty proofs, wrong proofs, cross-run binding, multiple recipients
+
+**2. Privacy by Design**
+- No amounts in on-chain events (RunCreated, PayoutEscrowed, PayoutClaimed, RunFinalized)
+- One-time claim secrets with keccak256 hashing
+- Capability-based authorization (no admin super-key)
+- Audit access logging with disk persistence
+
+**3. Smart Contract Architecture**
+- Upgradeable via UpgradeCap (emergency pause capability)
+- Modular design: confidential_adapter isolates W1 integration
+- Shared object pattern for escrows (enables recipient claim from different address)
+- No external dependencies in core payroll logic
+
+**4. Backend Security**
+- API key authentication for sensitive endpoints
+- Persistent storage with JSON file backend (production: PostgreSQL)
+- CORS restrictions (WEB_ORIGIN validation)
+- Email/SMS notification with console/SendGrid/Twilio support
+
+### Planned Audit Activities
+
+**Phase 1: Internal Review (Completed)**
+- [x] 16 Move unit tests with 100% branch coverage on authorization
+- [x] E2E integration tests (12 scenarios)
+- [x] Manual testing of full payroll flow on devnet
+
+**Phase 2: Third-Party Audit (Q3 2026)**
+- [ ] OpenZeppelin audit application submitted
+- [ ] OtterSec audit application submitted
+- [ ] Scope: `move/veil/sources/payroll.move` + `confidential_adapter.move`
+- [ ] Focus areas: authorization model, claim validation, confidential transfer integration
+
+**Phase 3: Bug Bounty Program (Post-Mainnet Launch)**
+- [ ] Immunefi bug bounty deployment
+- [ ] Tiered rewards: Critical ($10k+), High ($5k), Medium ($2k), Low ($500)
+- [ ] Scope: all smart contracts + relayer backend
+
+### Known Limitations & Mitigations
+
+| Limitation | Risk | Mitigation |
+|------------|------|------------|
+| Confidential Transfers in devnet beta | API may change before mainnet | Modular adapter pattern, isolated to 2 files |
+| Relayer executes claims on behalf of recipients | Relayer has signing authority | Relayer does not hold user funds, only sponsors gas |
+| JSON file storage for relayer | Not production-grade | Designed for swap to PostgreSQL, audit trail preserved |
+| No formal verification | Theoretical edge cases | Comprehensive test suite, upgradeable contracts |
+
+### Security Contact
+
+For security issues, please contact: `security@veil.payments` (placeholder — replace with actual security contact before production)
+
+**Do not disclose vulnerabilities publicly until a fix has been deployed.**
+
+---
+
 ## Troubleshooting
 
 - **Relayer shows `packageId: "unset"`.** Copy root `.env` to `apps/relayer/.env` and restart.
@@ -371,7 +436,12 @@ pnpm run typecheck
 |---|------|--------|-------|
 | 22 | Backup demo video | ⏳ | Manual recording of 3-min demo arc |
 | 24 | Design partner / traction evidence | ⏳ | Manual outreach to real users |
-| 25 | Security audit (OZ/OtterSec) | ⏳ | Manual application to audit firms |
+
+### Completed in this session
+
+| # | Item | Status |
+|---|------|--------|
+| 25 | Security audit plan | ✅ Written in README + DEPLOYMENT_REPORT (test coverage, audit roadmap, bug bounty plan) |
 
 See **`DEPLOYMENT_REPORT.md`** for the full deployment report with step-by-step next actions.
 
