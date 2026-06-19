@@ -8,6 +8,15 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
   const [info, setInfo] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [targetCurrency, setTargetCurrency] = useState('');
+
+  // Available currencies for DeepBook swap
+  const currencies = [
+    { value: '', label: 'SUI (default)' },
+    { value: '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC', label: 'USDC' },
+    { value: '0xc060006111016b8a020ad5b33834984a437aaa7d3c74c18e09a95d48aceab08c::coin::COIN', label: 'WUSDT' },
+    { value: '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP', label: 'DEEP' },
+  ];
 
   useEffect(() => {
     fetch(`${RELAYER_URL}/claims/${params.token}`)
@@ -21,13 +30,22 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
     setBusy(true);
     setMsg('');
     try {
+      const body: any = { recipientAddress: account.address };
+      if (targetCurrency) {
+        body.targetCoinType = targetCurrency;
+      }
       const r = await fetch(`${RELAYER_URL}/claims/${params.token}/claim`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ recipientAddress: account.address }),
+        body: JSON.stringify(body),
       });
       const d = await r.json();
-      setMsg(d.digest ? `Received! Transaction: ${d.digest}` : `Error: ${d.error ?? 'unknown'}`);
+      if (d.digest) {
+        const swapMsg = d.swapped ? ` (swapped to ${d.targetCoinType?.split('::').pop() || 'target currency'})` : '';
+        setMsg(`Received! Transaction: ${d.digest}${swapMsg}`);
+      } else {
+        setMsg(`Error: ${d.error ?? 'unknown'}`);
+      }
     } catch (e: any) {
       setMsg(String(e?.message ?? e));
     } finally {
@@ -97,6 +115,38 @@ export default function ClaimPage({ params }: { params: { token: string } }) {
             Connected: <code>{account.address.slice(0, 6)}...{account.address.slice(-4)}</code>
           </div>
         )}
+        
+        {/* DeepBook currency selector */}
+        <div style={{ marginTop: 16 }}>
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+            Receive in currency (optional)
+          </label>
+          <select
+            value={targetCurrency}
+            onChange={(e) => setTargetCurrency(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              fontSize: 14,
+              border: '1px solid #e5e5e5',
+              borderRadius: 6,
+              backgroundColor: 'white',
+              cursor: 'pointer',
+            }}
+          >
+            {currencies.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          {targetCurrency && (
+            <p style={{ fontSize: 12, color: '#737373', marginTop: 4 }}>
+              Your payment will be automatically swapped via DeepBook V3 at claim time.
+            </p>
+          )}
+        </div>
+
         <button className="btn" disabled={busy || info?.status === 'claimed' || !account} onClick={claim} style={{ marginTop: 12 }}>
           {info?.status === 'claimed' ? 'Already claimed' : busy ? 'Receiving…' : 'Receive payment'}
         </button>
