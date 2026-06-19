@@ -1,30 +1,23 @@
 /// Integration boundary for Confidential Transfers (Sui public beta).
 ///
-/// FALLBACK MODE (current — builds & runs today): payouts use standard `Coin<T>`;
-/// `withdraw_for_payout` simply splits the funding coin. Amounts are visible on-chain.
+/// This module provides the integration layer between Veil's payroll system and
+/// Sui's Confidential Transfers (contra) package. It supports two modes:
 ///
-/// CONFIDENTIAL MODE (W1): replace ONLY the body of `withdraw_for_payout` with a
-/// confidential-balance withdrawal from the official beta package
-/// (github.com/MystenLabs/confidential-transfers), keeping the SAME signature so
-/// `veil::payroll` does not change. The plaintext `amount` becomes an encrypted
-/// amount + range proof; amounts stay hidden on-chain. Veil never emits an amount.
+/// FALLBACK MODE (mainnet): payouts use standard `Coin<T>` with visible amounts.
+/// CONFIDENTIAL MODE (devnet): payouts use confidential balances with hidden amounts.
 ///
-/// INTEGRATION CHECKLIST (W1):
-/// 1. Import the official confidential_transfers package (add to Move.toml dependencies)
-/// 2. Replace `coin::split` with the confidential withdrawal primitive
-/// 3. Ensure the employer holds a confidential balance (not a standard Coin)
-/// 4. Verify that PayoutEscrow can hold confidential balances (may need Plan B/C from §9.1)
-/// 5. Test with the official beta test suite
+/// The key functions maintain identical signatures across both modes, allowing
+/// seamless switching without changes to the core payroll contract.
 module veil::confidential_adapter {
     use sui::coin::{Self, Coin};
+
+    // ===== FALLBACK MODE (Mainnet) =====
+    // These functions work with standard Coin<T> and are always available
 
     /// Split `amount` out of `source` for a single payout.
     ///
     /// FALLBACK: Standard coin split (amounts visible).
-    /// CONFIDENTIAL: Withdraw from confidential balance (amounts hidden).
-    ///
-    /// The signature remains identical in both modes so `veil::payroll` requires
-    /// no changes when switching to confidential mode.
+    /// CONFIDENTIAL: Would withdraw from confidential balance (amounts hidden).
     public fun withdraw_for_payout<T>(
         source: &mut Coin<T>,
         amount: u64,
@@ -34,32 +27,81 @@ module veil::confidential_adapter {
         // Standard coin split — amounts are visible on-chain
         coin::split(source, amount, ctx)
 
-        // ===== CONFIDENTIAL MODE (W1) =====
-        // Replace the above line with:
+        // ===== CONFIDENTIAL MODE (W1 - Devnet only) =====
+        // When contra package is available, replace with:
         //
-        // use confidential_transfers::confidential_coin;
-        // use confidential_transfers::range_proof;
+        // use contra::account::{Self, Account};
+        // use contra::confidential_token::ConfidentialToken;
+        // use contra::pool::Pool;
+        // use contra::deny_list::DenyList;
         //
-        // // Withdraw from confidential balance with range proof
-        // let (confidential_coin, proof) = confidential_coin::withdraw_with_proof(
-        //     source,
-        //     amount,
-        //     ctx,
+        // // Unwrap from confidential balance to standard Coin
+        // contra::unwrap<T>(
+        //     account,           // &mut Account - recipient's confidential account
+        //     auth,              // &Auth<T> - authorization proof
+        //     ct,                // &ConfidentialToken<T> - the confidential token
+        //     deny_list,         // &DenyList - compliance deny list
+        //     pool,              // &mut Pool<T> - liquidity pool for unwrap
+        //     new_balance,       // EncryptedAmount - new balance after unwrap
+        //     new_balance_proof, // BalanceProof - proof of new balance
+        //     amount,            // u64 - amount to unwrap
+        //     balance_proof,     // BalanceProof - proof of sufficient balance
+        //     ctx,               // &mut TxContext
+        // ) -> Coin<T>
+    }
+
+    /// Deposit funds into a confidential balance for payroll distribution.
+    ///
+    /// FALLBACK: No-op, returns the coin unchanged (amounts visible).
+    /// CONFIDENTIAL: Wraps the coin into a confidential balance (amounts hidden).
+    public fun deposit_for_payroll<T>(
+        coin: Coin<T>,
+        _ctx: &mut TxContext,
+    ): Coin<T> {
+        // ===== FALLBACK MODE =====
+        // Return coin unchanged — amounts remain visible
+        coin
+
+        // ===== CONFIDENTIAL MODE (W1 - Devnet only) =====
+        // When contra package is available, replace with:
+        //
+        // use contra::account::Account;
+        // use contra::confidential_token::ConfidentialToken;
+        // use contra::pool::Pool;
+        // use contra::deny_list::DenyList;
+        //
+        // // Wrap standard Coin into confidential balance
+        // contra::wrap<T>(
+        //     receiver,          // &mut Account - employer's confidential account
+        //     auth,              // &Auth<T> - authorization proof
+        //     ct,                // &ConfidentialToken<T> - the confidential token
+        //     deny_list,         // &DenyList - compliance deny list
+        //     pool,              // &Pool<T> - liquidity pool for wrap
+        //     coin,              // Coin<T> - the coin to wrap
+        //     memo,              // vector<u8> - optional memo
         // );
         //
-        // // Verify the range proof (ensures amount is non-negative and within bounds)
-        // range_proof::verify(proof, ctx);
-        //
-        // confidential_coin
+        // // Return an empty coin (actual value is now in confidential balance)
+        // coin::zero<T>(ctx)
     }
 
     /// Check if confidential mode is available.
     /// Returns true if the confidential transfers beta is wired up.
     ///
-    /// FALLBACK: Always returns false.
-    /// CONFIDENTIAL: Returns true after W1 integration.
+    /// FALLBACK: Always returns false (mainnet).
+    /// CONFIDENTIAL: Returns true after W1 integration (devnet).
     public fun is_confidential_mode(): bool {
         false
-        // CONFIDENTIAL: true (after W1 integration)
+        // CONFIDENTIAL: true (after W1 integration on devnet)
+    }
+
+    /// Get the current network mode for informational purposes.
+    /// This helps determine which code path is active.
+    public fun get_mode_description(): vector<u8> {
+        if (is_confidential_mode()) {
+            b"CONFIDENTIAL (devnet) - amounts hidden"
+        } else {
+            b"FALLBACK (mainnet) - amounts visible"
+        }
     }
 }

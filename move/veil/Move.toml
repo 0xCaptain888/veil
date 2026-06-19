@@ -3,10 +3,10 @@ name = "veil"
 edition = "2024.beta"
 license = "MIT"
 
-# For Confidential Transfers (Devnet public beta) switch rev to "framework/devnet"
-# and add the confidential-transfers package as a dependency in W1.
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
+# Confidential Transfers (Devnet public beta) - uncomment for W1
+# contra = { git = "https://github.com/MystenLabs/confidential-transfers.git", subdir = "move", rev = "main" }
 
 [addresses]
 veil = "0x0"

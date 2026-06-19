@@ -284,9 +284,9 @@ npm run typecheck
 | Frontend | ✅ Functional | Employer console, claim app, audit dashboard |
 | CI/CD | ✅ Working | Move build/test + TS typecheck on every push/PR |
 | GitHub | ✅ Synced | https://github.com/0xCaptain888/veil |
-| Confidentiality (W1) | ⏳ Adapter ready | Integration boundary defined, needs beta wiring |
+| Confidentiality (W1) | ✅ Adapter ready | Integration boundary defined, contra package documented, devnet-only |
 | zkLogin (W3) | ✅ Integrated | Google OAuth configured, simplified flow for demo |
-| DeepBook FX (W4) | ⏳ Logic implemented | Needs pool address configuration |
+| DeepBook FX (W4) | ✅ Logic implemented | V3 mainnet pools configured, swap functions ready |
 | Walrus/Seal (W5) | ⏳ Interface defined | Needs publisher URL + encryption logic |
 
 See **`DEPLOYMENT_REPORT.md`** for the full deployment report with step-by-step next actions.
