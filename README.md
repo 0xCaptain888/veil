@@ -16,7 +16,7 @@ Built for **Sui Overflow 2026 · DeFi & Payments**. Removes the three walls that
 
 ## Mainnet Deployment
 
-**The Veil contract is live on Sui Mainnet.**
+**The Veil contract is live on Sui Mainnet. Full payroll flow verified on-chain.**
 
 | Item | Value |
 |------|-------|
@@ -27,6 +27,26 @@ Built for **Sui Overflow 2026 · DeFi & Payments**. Removes the three walls that
 | **Modules** | `confidential_adapter`, `payroll` |
 | **Move Tests** | 16/16 passing |
 | **GitHub** | https://github.com/0xCaptain888/veil |
+
+### ✅ Mainnet Pilot Test Complete
+
+Full payroll flow executed on mainnet with two independent addresses:
+
+| Transaction | Digest | Explorer |
+|-------------|--------|----------|
+| **Deploy** | `9dvTzSVU6eHzSmdFVN4tLPjgUDDQ9ETo9YMwQZepD3ZD` | [View](https://suiscan.xyz/mainnet/tx/9dvTzSVU6eHzSmdFVN4tLPjgUDDQ9ETo9YMwQZepD3ZD) |
+| **Register Employer** | `HjcK66MJgDwcvPsDvYVXZ9YbgVUpWBLAoKipVs8DQyrk` | [View](https://suiscan.xyz/mainnet/tx/HjcK66MJgDwcvPsDvYVXZ9YbgVUpWBLAoKipVs8DQyrk) |
+| **Payroll PTB** (create → escrow → finalize) | `Gyd66rCZbp44H26dzCbUm869zN6xtikxMFiHF89bhFPP` | [View](https://suiscan.xyz/mainnet/tx/Gyd66rCZbp44H26dzCbUm869zN6xtikxMFiHF89bhFPP) |
+| **Claim Payout** | `5QJFEA9T2Ub8dUZrHJemjrMcC47tu94GMHCXQJfjfwYh` | [View](https://suiscan.xyz/mainnet/tx/5QJFEA9T2Ub8dUZrHJemjrMcC47tu94GMHCXQJfjfwYh) |
+
+**Verified on-chain:**
+- ✅ Privacy invariant: No amounts in any events (`PayoutEscrowed`, `PayoutClaimed`)
+- ✅ Cross-address claim: Employer created escrow, recipient (different address) claimed
+- ✅ Anti-replay: `PayoutEscrow` destroyed after claim
+- ✅ Atomic PTB: 4 operations in single transaction
+- ✅ Real SUI transferred: 0.1 SUI (101,099,128 MIST with storage rebate)
+
+See [INTERNAL_PILOT_TEST.md](./INTERNAL_PILOT_TEST.md) for full report.
 
 ### Key Addresses
 
@@ -407,6 +427,7 @@ For security issues, please contact: `security@veil.payments` (placeholder — r
 | Docker | ✅ Containerized | Multi-stage Dockerfile + docker-compose.yml (relayer, indexer, web) |
 | Devnet reset | ✅ Script ready | One-click rebuild + redeploy + sample recipients |
 | i18n/a11y | ✅ Complete | i18n: en/es/pt/zh with auto-detect + selector. a11y: WCAG AA (aria, keyboard nav, focus, skip link, high contrast, reduced motion). Localized amounts via Intl.NumberFormat |
+| Mainnet Pilot Test | ✅ Complete | Full payroll flow verified on mainnet with real SUI tokens |
 | E2E tests | ✅ Script ready | 12-test integration suite covering full API surface |
 
 ### Completed items from development checklist
@@ -429,13 +450,14 @@ For security issues, please contact: `security@veil.payments` (placeholder — r
 | 16 | Accessibility (a11y) | ✅ WCAG AA: aria, keyboard, focus, skip link, high contrast |
 | 17 | Localized amount display | ✅ Intl.NumberFormat |
 | 18 | Low-bandwidth/mobile + SMS | ✅ Responsive CSS, 44px touch targets, SMS fallback |
+| 24 | Mainnet pilot test | ✅ Full flow verified on mainnet (deploy → register → payroll PTB → claim) |
 
 ### Remaining items (manual tasks — require human action)
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 22 | Backup demo video | ⏳ | Manual recording of 3-min demo arc |
-| 24 | Design partner / traction evidence | ⏳ | Manual outreach to real users |
+| 25 | Design partner outreach | ⏳ | Manual contact with potential users |
 
 ### Completed in this session
 
