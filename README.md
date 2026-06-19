@@ -288,6 +288,7 @@ pnpm run typecheck
 | Move contracts | ✅ Deployed to mainnet | Package `0x3d95e6f1...d38921a`, 11/11 tests passing, entry modifiers restored |
 | SDK | ✅ Complete | PTB builders, DeepBook V3 swap, contra wrap/unwrap, client wrapper |
 | Relayer | ✅ Production-ready | Persistent storage, API auth, email notifications, sponsored transactions |
+| Indexer | ✅ Event indexing | Polls Sui events, builds audit trail, privacy-preserving (no amounts) |
 | Frontend | ✅ Functional | Employer console, claim app (zkLogin + currency selector), audit dashboard (API key auth) |
 | CI/CD | ✅ Working | Move build/test + TS typecheck on every push/PR |
 | GitHub | ✅ Synced | https://github.com/0xCaptain888/veil |
