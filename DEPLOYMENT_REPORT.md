@@ -55,7 +55,21 @@
 - ✅ **Devnet 重置脚本**（一键重建 + 重新部署）
 - ✅ **E2E 集成测试**（12 个测试覆盖完整 API）
 
-### 4. 服务运行状态
+### 4. 主网试点测试
+- ✅ **完整流程验证**：部署 → 注册雇主 → 发薪 PTB → 领取
+- ✅ **交易 1（发薪 PTB）**: `Gyd66rCZbp44H26dzCbUm869zN6xtikxMFiHF89bhFPP`
+  - 原子执行：create_run → escrow_payout → finalize_run
+  - 金额：0.1 SUI
+  - Explorer: https://suiscan.xyz/mainnet/tx/Gyd66rCZbp44H26dzCbUm869zN6xtikxMFiHF89bhFPP
+- ✅ **交易 2（领取）**: `5QJFEA9T2Ub8dUZrHJemjrMcC47tu94GMHCXQJfjfwYh`
+  - 收款人地址：`0x89532691d455ab674b09579d5fb5ea591a28f328135108857808d2688c8f919b`
+  - 到账金额：101,099,128 MIST（含 storage rebate）
+  - Explorer: https://suiscan.xyz/mainnet/tx/5QJFEA9T2Ub8dUZrHJemjrMcC47tu94GMHCXQJfjfwYh
+- ✅ **隐私验证**：链上事件中无金额明文
+- ✅ **防重放验证**：Escrow 对象领取后销毁
+- ✅ **跨地址验证**：雇主创建，收款人（不同地址）领取
+
+### 5. 服务运行状态
 - ✅ Relayer: `http://localhost:8787` (运行中)
 - ✅ Web 前端: `http://localhost:3000` (运行中)
 
@@ -212,7 +226,6 @@
 | # | 项目 | 说明 |
 |---|------|------|
 | 22 | 录制备份视频 | 需手动录制 3 分钟演示弧线 |
-| 24 | 寻找 design partner | 需手动联系真实用户 |
 
 ---
 
@@ -252,12 +265,13 @@ docker-compose.yml                     # 全栈编排（新增）
 **更新时间**: 2026-06-19
 **部署状态**: ✅ 成功
 **服务状态**: ✅ 运行中
-**开发完成度**: 23/25 项（92%）— 所有代码项 + 审计计划已完成，剩余 2 项手动任务
-**代码提交**: 9 次增量提交已推送到 GitHub
+**主网试点**: ✅ 完整流程已验证
+**开发完成度**: 24/25 项（96%）— 所有代码项 + 审计计划 + 主网试点已完成，剩余 1 项手动任务
+**代码提交**: 10 次增量提交已推送到 GitHub
 
 ### 剩余手动任务（需人工操作）
 1. **#22** — 录制 3 分钟演示备份视频
-2. **#24** — 联系真实用户作为 design partner
 
 ### 已完成（本次会话）
+- **#24** — 主网试点测试完成（完整发薪→领取流程，链上可验证）
 - **#25** — 安全审计计划已写入 README 和 DEPLOYMENT_REPORT（包含测试覆盖、审计路线图、漏洞赏金计划）

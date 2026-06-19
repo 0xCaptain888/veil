@@ -457,7 +457,6 @@ For security issues, please contact: `security@veil.payments` (placeholder — r
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | 22 | Backup demo video | ⏳ | Manual recording of 3-min demo arc |
-| 25 | Design partner outreach | ⏳ | Manual contact with potential users |
 
 ### Completed in this session
 
