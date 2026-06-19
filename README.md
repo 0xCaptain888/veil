@@ -25,7 +25,7 @@ Built for **Sui Overflow 2026 · DeFi & Payments**. Removes the three walls that
 | **Deploy Tx** | `9dvTzSVU6eHzSmdFVN4tLPjgUDDQ9ETo9YMwQZepD3ZD` |
 | **Network** | Sui Mainnet |
 | **Modules** | `confidential_adapter`, `payroll` |
-| **Move Tests** | 11/11 passing |
+| **Move Tests** | 16/16 passing |
 | **GitHub** | https://github.com/0xCaptain888/veil |
 
 ### Key Addresses
@@ -91,11 +91,13 @@ veil/
 │  └─ src/config.ts                  #   Indexer config
 ├─ apps/web/                          # Next.js frontend
 │  ├─ app/employer/page.tsx          #   Employer console
-│  ├─ app/claim/[token]/page.tsx     #   Recipient claim page (zkLogin + wallet + currency selector)
+│  ├─ app/claim/[token]/page.tsx     #   Recipient claim page (zkLogin + wallet + currency selector + i18n)
 │  ├─ app/audit/page.tsx             #   Auditor dashboard + CSV export + access logs
 │  ├─ app/api/auth/callback/google/  #   Google OAuth callback for zkLogin
 │  ├─ app/page.tsx                   #   Home page with zkLogin status
-│  └─ app/providers.tsx              #   SuiClientProvider + WalletProvider
+│  ├─ app/providers.tsx              #   SuiClientProvider + WalletProvider
+│  ├─ lib/veil.ts                    #   Config helpers, formatAmount, coinTypeLabel
+│  └─ lib/i18n.ts                    #   i18n translations (en/es/pt/zh) + auto-detect
 ├─ tests/e2e.ts                      # E2E integration test suite (12 tests)
 ├─ scripts/publish.sh                 # Publish the Move package
 ├─ scripts/reset-devnet.sh            # One-click devnet rebuild + redeploy
@@ -147,10 +149,10 @@ pnpm --filter @veil/web run dev       # http://localhost:3000
 
 ### Demo walkthrough (≈ 3 min)
 
-1. **Employer** (http://localhost:3000/employer): connect wallet → **Register employer** → paste a **funding Coin id** → add recipients → **Execute confidential payout**. One PTB creates the run, escrows each payout, and finalizes.
-2. The page shows a **claim link** per recipient. The relayer sends **email notifications** automatically. Copy the **Run id** for the auditor.
-3. **Recipient** (open a claim link): **Sign in with Google** (zkLogin) or connect a wallet → **Receive payment**. The relayer pays gas; funds arrive. If a DeepBook pool is configured, the payout is automatically swapped to the recipient's target currency.
-4. **Auditor** (http://localhost:3000/audit): paste the Run id → **Load** → see the reconciliation → **Export CSV**.
+1. **Employer** (http://localhost:3000/employer): connect wallet → **Register employer** → paste a **funding Coin id** → add recipients (email and/or phone) → **Execute confidential payout**. One PTB creates the run, escrows each payout, and finalizes.
+2. The page shows a **claim link** per recipient. The relayer sends **email and/or SMS notifications** automatically. Copy the **Run id** for the auditor.
+3. **Recipient** (open a claim link): page auto-detects browser language (en/es/pt/zh) → **Sign in with Google** (zkLogin) or connect a wallet → choose target currency → **Receive payment**. The relayer pays gas; funds arrive. If a DeepBook pool is configured, the payout is automatically swapped to the recipient's target currency.
+4. **Auditor** (http://localhost:3000/audit): enter API key → paste the Run id → **Load** → see the reconciliation with access logs → **Export CSV**.
 
 ---
 
@@ -161,19 +163,26 @@ pnpm --filter @veil/web run dev       # http://localhost:3000
 │  Employer   │     │     Veil Relayer          │     │   Sui Mainnet        │
 │  Console    │────▶│  ┌─────────────────────┐  │     │                      │
 │  (Next.js)  │     │  │ Auth (API key)      │  │     │  veil::payroll       │
-└─────────────┘     │  │ Email notifications │  │────▶│  veil::conf_adapter  │
+└─────────────┘     │  │ Email + SMS notify  │  │────▶│  veil::conf_adapter  │
                     │  │ Persistent storage   │  │     │  DeepBook V3         │
 ┌─────────────┐     │  │ Gas sponsorship      │  │     └──────────────────────┘
-│  Recipient  │     │  └─────────────────────┘  │
-│  Claim App  │────▶│                           │     ┌──────────────────────┐
-│  (zkLogin)  │     │  Routes:                  │     │  contra (W1 devnet)  │
-└─────────────┘     │  POST /runs/register      │     │  Confidential balance │
-                    │  GET  /claims/:token       │     └──────────────────────┘
-┌─────────────┐     │  POST /claims/:token/claim │
-│  Auditor    │     │  GET  /audit/runs/:runId   │     ┌──────────────────────┐
-│  Dashboard  │────▶│                           │     │  Walrus / Seal (W5)  │
-└─────────────┘     └──────────────────────────┘     │  Encrypted payslips  │
-                                                      └──────────────────────┘
+│  Recipient  │     │  │ Risk API (TRM)       │  │
+│  Claim App  │────▶│  └─────────────────────┘  │     ┌──────────────────────┐
+│  (zkLogin)  │     │                           │     │  contra (W1 devnet)  │
+│  i18n:4lang │     │  Routes:                  │     │  Confidential balance │
+└─────────────┘     │  POST /runs/register      │     └──────────────────────┘
+                    │  GET  /claims/:token       │
+┌─────────────┐     │  POST /claims/:token/claim │     ┌──────────────────────┐
+│  Auditor    │     │  POST /claims/build        │     │  Walrus / Seal (W5)  │
+│  Dashboard  │────▶│  POST /claims/exec-spons.  │────▶│  Encrypted payslips  │
+│  (API key)  │     │  GET  /audit/runs/:runId   │     └──────────────────────┘
+└─────────────┘     │  GET  /audit/access-logs   │
+                    │  GET  /risk/address/:addr   │     ┌──────────────────────┐
+┌─────────────┐     │  POST /risk/monitor        │     │  Veil Indexer        │
+│   Veil      │     │  GET  /risk/stats          │     │  Polls Sui events    │
+│   Indexer   │────▶│                           │◀────│  Builds audit trail  │
+│  (events)   │     └──────────────────────────┘     │  Privacy-preserving  │
+└─────────────┘                                       └──────────────────────┘
 ```
 
 ---
@@ -192,6 +201,8 @@ pnpm --filter @veil/web run dev       # http://localhost:3000
 | `RELAYER_API_KEY` | Bearer token for sensitive endpoints | *(empty = dev mode)* |
 | `EMAIL_SERVICE` | `console` / `sendgrid` / `ses` | `console` |
 | `EMAIL_FROM` | Sender address for claim emails | `noreply@veil.payments` |
+| `SMS_SERVICE` | `console` / `twilio` / `sns` (§18 fallback) | `console` |
+| `SMS_FROM` | Sender phone for SMS notifications | `+15551234567` |
 | `DEEPBOOK_PACKAGE_ID` | DeepBook V3 package | `0x337f4f...ef497` |
 | `DEEPBOOK_POOL_ID` | Trading pool for FX swap | `0xe05daf...4407` (SUI/USDC) |
 | `GOOGLE_CLIENT_ID` | Google OAuth for zkLogin | *(required for W3)* |
