@@ -14,6 +14,21 @@ Built for **Sui Overflow 2026 · DeFi & Payments**. Removes the three walls that
 
 ---
 
+## Mainnet Deployment
+
+**The Veil contract is live on Sui Mainnet.**
+
+| Item | Value |
+|------|-------|
+| **Package ID** | `0x3d95e6f1a4ca7d8341c2d7bc054014cf53b099eb4686ca194b5b470d2d38921a` |
+| **UpgradeCap** | `0x8b1c999747661d1bd9a8b75e217906c93c3c3c78f0977852db01d96585437377` |
+| **Deploy Tx** | `9dvTzSVU6eHzSmdFVN4tLPjgUDDQ9ETo9YMwQZepD3ZD` |
+| **Network** | Sui Mainnet |
+| **Modules** | `confidential_adapter`, `payroll` |
+| **Move Tests** | 11/11 passing |
+
+---
+
 ## ⚠️ Build mode (read this first)
 
 This repo **builds and runs end-to-end today** in **fallback mode**: payouts use standard `Coin<T>` (amounts visible on-chain), so you can demo the full flow — batch payout → claim → audit — immediately.
@@ -35,14 +50,31 @@ Likewise, **zkLogin onboarding (W3)** and **DeepBook FX (W4)** have working fall
 ```
 veil/
 ├─ move/veil/                 # Sui Move package (veil::payroll, veil::confidential_adapter)
-│  ├─ sources/payroll.move
-│  ├─ sources/confidential_adapter.move
-│  └─ tests/payroll_tests.move
-├─ packages/sdk/              # Shared TypeScript SDK (PTB builders, types, helpers)
-├─ apps/relayer/              # Express gas station: claim execution + audit API
-├─ apps/web/                  # Next.js: employer console / claim page / auditor dashboard
+│  ├─ sources/payroll.move           # Core contract: Employer, PayrollRun, PayoutEscrow, Payslip
+│  ├─ sources/confidential_adapter.move  # W1 integration boundary for Confidential Transfers
+│  └─ tests/payroll_tests.move       # 11 tests: auth, state machine, claim proof, edge cases
+├─ packages/sdk/              # Shared TypeScript SDK
+│  ├─ src/ptb.ts             #   PTB builders (buildExecuteRunTx, buildClaimToSenderTx)
+│  ├─ src/deepbook.ts        #   DeepBook V3 FX swap (maybeSwap, buildClaimWithSwapTx)
+│  ├─ src/confidential.ts    #   Manifest encode/decode (W5: Walrus+Seal encryption)
+│  ├─ src/client.ts          #   VeilClient wrapper
+│  ├─ src/utils.ts           #   idHash (keccak256), randomSecret
+│  └─ src/types.ts           #   VeilConfig, RecipientInput, AuditEntry
+├─ apps/relayer/              # Express gas station + API
+│  ├─ src/index.ts           #   Server entry, CORS, health endpoint
+│  ├─ src/auth.ts            #   API key authentication middleware
+│  ├─ src/email.ts           #   Email notification service (console/SendGrid/SES)
+│  ├─ src/store.ts           #   Persistent JSON file storage
+│  ├─ src/sui.ts             #   Relayer keypair + tx execution
+│  ├─ src/config.ts          #   Environment config loader
+│  └─ src/routes/            #   claims.ts, runs.ts, audit.ts
+├─ apps/web/                  # Next.js frontend
+│  ├─ app/employer/page.tsx  #   Employer console: register, create run, execute PTB
+│  ├─ app/claim/[token]/     #   Recipient claim page: connect wallet, receive payment
+│  ├─ app/audit/page.tsx     #   Auditor dashboard: reconciliation + CSV export
+│  └─ app/providers.tsx      #   SuiClientProvider + WalletProvider
 ├─ scripts/publish.sh         # Publish the Move package
-├─ .github/workflows/ci.yml   # Move build/test + TS typecheck
+├─ .github/workflows/ci.yml   # Move build/test + TS typecheck (strict)
 └─ docs/                      # 01 dev doc · 02 deploy & GitHub · 03 prerequisites
 ```
 
@@ -55,7 +87,7 @@ See **`docs/03-prerequisites-checklist.md`** for the full list (accounts, keys, 
 - **Node.js ≥ 20** and **npm ≥ 10**
 - **Sui CLI** (`sui`) — https://docs.sui.io/guides/developer/getting-started/sui-install
 - A **Sui wallet** browser extension (employer signer) + **Sui Wallet / Slush**
-- A **funded relayer key** in `suiprivkey1...` format (faucet-funded on Devnet)
+- A **funded relayer key** in `suiprivkey1...` format
 
 ---
 
@@ -65,60 +97,136 @@ See **`docs/03-prerequisites-checklist.md`** for the full list (accounts, keys, 
 # 1) install workspace deps
 npm install
 
-# 2) deploy the Move package (Devnet)
-sui client switch --env devnet
-sui client faucet                 # fund your active address
-./scripts/publish.sh              # prints the PackageID
-
-# 3) configure env
+# 2) configure env
 cp .env.example .env
-#   set VEIL_PACKAGE_ID + NEXT_PUBLIC_VEIL_PACKAGE_ID to the published id
+#   set VEIL_PACKAGE_ID=0x3d95e6f1a4ca7d8341c2d7bc054014cf53b099eb4686ca194b5b470d2d38921a
 #   set RELAYER_PRIVATE_KEY to a funded suiprivkey1... key
+#   set SUI_NETWORK=mainnet
 #   (web reads the NEXT_PUBLIC_* values — keep them in sync)
 
-# 4) run the relayer (terminal A)
+# 3) run the relayer (terminal A)
 npm run dev:relayer               # http://localhost:8787
 
-# 5) run the web app (terminal B)
+# 4) run the web app (terminal B)
 npm run dev:web                   # http://localhost:3000
 ```
 
+> The contract is already deployed to mainnet. No need to re-publish unless you modify the Move code.
+>
 > The web app reads `NEXT_PUBLIC_*` env vars at build/start. For local dev, put them in `apps/web/.env.local` (or export them) in addition to the root `.env` used by the relayer.
 
 ### Demo walkthrough (≈ 3 min)
 
-1. **Employer** (http://localhost:3000/employer): connect wallet → **Register employer** (prefills ids) → paste a **funding Coin id** (a SUI coin you own from the faucet) → add recipients → **Execute confidential payout**. One PTB creates the run, escrows each payout, and finalizes — **amounts never appear in events**.
-2. The page shows a **claim link** per recipient (also logged by the relayer). Copy the **Run id** for the auditor.
-3. **Recipient** (open a claim link): connect a wallet (production: Google/zkLogin) → **Receive payment**. The relayer pays gas; funds arrive. *(DeepBook FX is wired in W4.)*
+1. **Employer** (http://localhost:3000/employer): connect wallet → **Register employer** (prefills ids) → paste a **funding Coin id** (a SUI coin you own) → add recipients → **Execute confidential payout**. One PTB creates the run, escrows each payout, and finalizes — **amounts never appear in events**.
+2. The page shows a **claim link** per recipient. The relayer also sends **email notifications** to each recipient. Copy the **Run id** for the auditor.
+3. **Recipient** (open a claim link): connect a wallet (production: Google/zkLogin) → **Receive payment**. The relayer pays gas; funds arrive. If a DeepBook pool is configured, the payout is automatically swapped to the recipient's target currency.
 4. **Auditor** (http://localhost:3000/audit): paste the Run id → **Load** → see the reconciliation → **Export CSV**.
 
 ---
 
-## Push to GitHub
+## Architecture
 
-Full steps in **`docs/02-deployment-and-github-guide.md`**. Short version:
-
-```bash
-git init
-git add .
-git commit -m "Veil — confidential payroll on Sui (Overflow 2026)"
-git branch -M main
-git remote add origin https://github.com/<you>/veil.git
-git push -u origin main
+```
+┌─────────────┐     ┌──────────────────────────┐     ┌──────────────────────┐
+│  Employer   │     │     Veil Relayer          │     │   Sui Mainnet        │
+│  Console    │────▶│  ┌─────────────────────┐  │     │                      │
+│  (Next.js)  │     │  │ Auth (API key)      │  │     │  veil::payroll       │
+└─────────────┘     │  │ Email notifications │  │────▶│  veil::conf_adapter  │
+                    │  │ Persistent storage   │  │     │  DeepBook V3         │
+┌─────────────┐     │  │ Gas sponsorship      │  │     └──────────────────────┘
+│  Recipient  │     │  └─────────────────────┘  │
+│  Claim App  │────▶│                           │     ┌──────────────────────┐
+│  (zkLogin)  │     │  Routes:                  │     │  Walrus / Seal (W5)  │
+└─────────────┘     │  POST /runs/register      │     │  Encrypted payslips  │
+                    │  GET  /claims/:token       │     └──────────────────────┘
+┌─────────────┐     │  POST /claims/:token/claim │
+│  Auditor    │     │  GET  /audit/runs/:runId   │
+│  Dashboard  │────▶│                           │
+└─────────────┘     └──────────────────────────┘
 ```
 
-`.gitignore` already excludes `node_modules`, `.env`, and build output. **Never commit a real `RELAYER_PRIVATE_KEY`.**
+---
+
+## Environment Configuration
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SUI_NETWORK` | `mainnet` / `testnet` / `devnet` / `localnet` | Yes |
+| `VEIL_PACKAGE_ID` | Deployed Move package address | Yes |
+| `RELAYER_PRIVATE_KEY` | Funded `suiprivkey1...` key for gas sponsorship | Yes |
+| `STABLE_COIN_TYPE` | Payout coin type (default: `0x2::sui::SUI`) | Yes |
+| `PORT` | Relayer port (default: `8787`) | No |
+| `WEB_ORIGIN` | Allowed CORS origin for the web app | No |
+| `DATA_DIR` | Persistent storage directory (default: `./data`) | No |
+| `RELAYER_API_KEY` | Bearer token for protecting sensitive endpoints | Recommended |
+| `EMAIL_SERVICE` | `console` (demo) / `sendgrid` / `ses` | No |
+| `EMAIL_FROM` | Sender address for claim emails | No |
+| `DEEPBOOK_PACKAGE_ID` | DeepBook V3 package for FX swap | W4 |
+| `DEEPBOOK_POOL_ID` | Trading pool for source→target swap | W4 |
+| `GOOGLE_CLIENT_ID` | Google OAuth for zkLogin | W3 |
+| `ZKLOGIN_PROVER_URL` | zkLogin prover service | W3 |
+| `SALT_SERVICE_URL` | zkLogin salt service | W3 |
+| `WALRUS_PUBLISHER_URL` | Walrus publisher for encrypted payslips | W5 |
+
+See `.env.example` for the complete reference with comments.
+
+---
+
+## API Reference
+
+### Relayer HTTP API
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/health` | — | Health check + store stats |
+| `POST` | `/runs/register-tokens` | API key | Register claim tokens after on-chain execution |
+| `GET` | `/claims/:token` | — | Get claim info (email, amount, status) |
+| `POST` | `/claims/:token/claim` | — | Execute claim (relayer pays gas) |
+| `GET` | `/audit/runs/:runId` | API key | Auditor reconciliation for a run |
+| `GET` | `/audit/runs` | API key | List all runs |
+
+### SDK (`@veil/sdk`)
+
+| Function | Description |
+|----------|-------------|
+| `buildExecuteRunTx(params)` | Build atomic batch payout PTB |
+| `buildClaimToSenderTx(params)` | Build claim transaction |
+| `buildClaimWithSwapTx(params)` | Build claim + DeepBook FX swap transaction |
+| `maybeSwap(tx, cfg, coin, target, source, minOut)` | Optional DeepBook FX swap with slippage protection |
+| `idHash(secret)` | keccak256 hash (matches Move `sui::hash::keccak256`) |
+| `randomSecret()` | Generate one-time claim secret |
+| `encodeManifest/decodeManifest` | Run manifest serialization (W5: encryption) |
+| `VeilClient` | High-level wrapper around SuiClient |
 
 ---
 
 ## Testing & CI
 
 ```bash
-sui move test --path move/veil     # Move unit tests (authz, claim proof, state)
-npm run typecheck                  # TypeScript across the workspace
+# Move unit tests (11 tests: auth, state machine, claim proof, edge cases)
+sui move test --path move/veil
+
+# TypeScript typecheck across the workspace
+npm run typecheck
 ```
 
-`.github/workflows/ci.yml` runs Move build/test and TS typecheck on every push/PR (installs the Sui CLI on the runner).
+**Move test coverage:**
+
+| Test | What it verifies |
+|------|-----------------|
+| `happy_path_escrow_and_claim` | Full lifecycle: create → escrow → finalize → claim → verify amount |
+| `claim_with_wrong_proof_aborts` | Wrong secret triggers `EBadProof` |
+| `unauthorized_admin_cannot_create_run` | Wrong AdminCap triggers `ENotAuthorized` |
+| `cannot_escrow_after_finalize` | Escrow on finalized run triggers `ERunFinalized` |
+| `multiple_recipients_in_one_run` | Batch escrow (3 recipients) with correct count |
+| `run_status_transitions` | EXECUTING(1) → FINALIZED(2) state machine |
+| `multiple_runs_created` | Employer can create multiple sequential runs |
+| `manifest_blob_stored` | Run with manifest blob creates successfully |
+| `auditor_pubkey_readable` | Auditor public key is accessible |
+| `unauthorized_admin_cannot_finalize` | Wrong AdminCap on finalize triggers `ENotAuthorized` |
+| `claim_with_empty_proof_aborts` | Empty proof triggers `EBadProof` |
+
+`.github/workflows/ci.yml` runs Move build/test and TS typecheck on every push/PR. The Move job **fails hard** if the Sui CLI is unavailable or tests fail — no silent skips.
 
 ---
 
@@ -131,9 +239,11 @@ npm run typecheck                  # TypeScript across the workspace
   use sui::transfer;
   ```
 - **`Dependency resolution failed` on build.** The `Move.toml` pins `rev = "framework/testnet"`. Switch it to `framework/devnet` if you publish to Devnet for Confidential Transfers, or to a tagged release that matches your `sui` CLI.
-- **Relayer 500 on claim.** Ensure `VEIL_PACKAGE_ID` and `RELAYER_PRIVATE_KEY` are set and the relayer key is funded.
+- **Relayer 500 on claim.** Ensure `VEIL_PACKAGE_ID` and `RELAYER_PRIVATE_KEY` are set and the relayer key is funded with SUI for gas.
 - **Web can't reach relayer / CORS.** Confirm `WEB_ORIGIN` (relayer) matches the web origin and `NEXT_PUBLIC_RELAYER_URL` points at the relayer.
 - **`BigInt` literal errors.** Amounts are sent as base units (strings) and converted with `BigInt()`.
+- **Relayer data lost on restart.** Data persists in `./data/relayer-store.json` by default. Set `DATA_DIR` to change the location. If the file is corrupted, the relayer starts fresh (logs a warning).
+- **401 on `/runs/register-tokens` or `/audit/*`.** If `RELAYER_API_KEY` is set, include `Authorization: Bearer <key>` header. Leave it empty for development mode.
 
 ---
 
@@ -142,17 +252,21 @@ npm run typecheck                  # TypeScript across the workspace
 - **W1** — wire Confidential Transfers beta into `confidential_adapter` + SDK (de-risk: Plan A/B/C in dev doc §9.1).
 - **W2** — capability hardening, auditor decrypt/reconcile.
 - **W3** — zkLogin onboarding + sponsored-gas claim (recipient signs, relayer sponsors).
-- **W4** — DeepBook FX at claim.
+- **W4** — DeepBook FX at claim (adapter ready, needs pool configuration).
 - **W5** — Walrus + Seal encrypted payslips; UI polish; design partner.
 - **W6** — rehearse, record backup video, finalize submission.
 
 ---
 
-## Project status (honest)
+## Project status
 
-- ✅ Move package, SDK, relayer, and web app are written and statically checked (file tree, JSON validity, placeholder scan).
-- ⚠️ **Not yet compiled/deployed in the authoring environment** (it had no network). Run `npm install` + `sui move build` on your machine to get the final green light — see the deployment guide.
-- ⚠️ Confidentiality / zkLogin / DeepBook are wired via adapters with working fallbacks; production wiring is W1/W3/W4.
+- ✅ **Move package deployed to Sui Mainnet** — Package ID: `0x3d95e6f1...d38921a`
+- ✅ **11 Move unit tests passing** — auth, state machine, claim proof, edge cases
+- ✅ **SDK complete** — PTB builders, DeepBook FX swap, client wrapper, utils
+- ✅ **Relayer production-ready** — persistent storage, API auth, email notifications, gas sponsorship
+- ✅ **Frontend functional** — employer console, claim app, audit dashboard
+- ✅ **CI pipeline** — Move build/test + TS typecheck on every push/PR
+- ⚠️ Confidentiality (W1), zkLogin (W3), DeepBook pool config (W4), Walrus/Seal (W5) — adapter interfaces ready, production wiring pending
 
 ## License
 
