@@ -107,6 +107,38 @@ module veil::payroll {
         transfer::public_transfer(auditor, who);
     }
 
+    /// Entry convenience: create a run and transfer it to the sender.
+    /// This is the main entry point for creating payroll runs via CLI.
+    #[allow(lint(public_entry))]
+    public entry fun create_and_transfer_run(
+        emp: &mut Employer,
+        cap: &AdminCap,
+        manifest_blob: vector<u8>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let run = create_run(emp, cap, manifest_blob, clock, ctx);
+        transfer::transfer(run, tx_context::sender(ctx));
+    }
+
+    /// Entry convenience: execute a complete payroll run in one transaction.
+    /// Creates run, escrows payment, finalizes run, and transfers run to sender.
+    #[allow(lint(public_entry))]
+    public entry fun execute_payroll_run<T>(
+        emp: &mut Employer,
+        cap: &AdminCap,
+        manifest_blob: vector<u8>,
+        recipient_id_hash: vector<u8>,
+        payment: Coin<T>,
+        clock: &Clock,
+        ctx: &mut TxContext,
+    ) {
+        let mut run = create_run(emp, cap, manifest_blob, clock, ctx);
+        escrow_payout<T>(&mut run, cap, recipient_id_hash, payment, ctx);
+        finalize_run(&mut run, cap);
+        transfer::transfer(run, tx_context::sender(ctx));
+    }
+
     // ===== Payroll run lifecycle =====
     public fun create_run(
         emp: &mut Employer,
