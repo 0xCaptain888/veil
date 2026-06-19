@@ -4,6 +4,7 @@ import { RELAYER_URL } from '../../lib/veil';
 
 export default function AuditPage() {
   const [runId, setRunId] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [data, setData] = useState<any>(null);
   const [msg, setMsg] = useState('');
 
@@ -11,10 +12,18 @@ export default function AuditPage() {
     setMsg('');
     setData(null);
     try {
-      const r = await fetch(`${RELAYER_URL}/audit/runs/${runId}`);
+      const headers: Record<string, string> = {};
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+      const r = await fetch(`${RELAYER_URL}/audit/runs/${runId}`, { headers });
       const d = await r.json();
       if (d.entries) setData(d);
-      else setMsg(d.error ?? 'not found');
+      else if (d.error === 'Invalid API key' || d.error?.includes('API key')) {
+        setMsg('Authentication failed. Please check your API key.');
+      } else {
+        setMsg(d.error ?? 'not found');
+      }
     } catch (e: any) {
       setMsg(String(e?.message ?? e));
     }
@@ -36,6 +45,14 @@ export default function AuditPage() {
       <a href="/" style={{ color: '#737373' }}>← home</a>
       <h1 style={{ fontSize: 26, fontWeight: 800, marginTop: 8 }}>Auditor dashboard</h1>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <input 
+          className="input" 
+          type="password"
+          placeholder="API key (optional)" 
+          value={apiKey} 
+          onChange={(e) => setApiKey(e.target.value)}
+          style={{ maxWidth: 200 }}
+        />
         <input className="input" placeholder="Run id (0x...)" value={runId} onChange={(e) => setRunId(e.target.value)} />
         <button className="btn" onClick={load}>Load</button>
       </div>
